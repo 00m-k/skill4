@@ -761,7 +761,8 @@ function renderEveningHistory() {
 //  🌙 今日收工 & AI生成明日早报
 // ============================================================
 async function dayDone() {
-  // 先保存晚报
+  if (!confirm('确定今日收工？\n\n✅ 最后保存一次晚报\n🤖 AI自动生成明天早报\n📌 今天早报不变，明天才看新内容\n\n误点了也没关系，可以反复点')) return;
+
   saveEveningSilent();
 
   const apiKey = localStorage.getItem('skill4_ds_key');
