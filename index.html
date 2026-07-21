@@ -406,8 +406,8 @@
       <label style="font-size:13px;color:var(--sub);">明日计划</label>
       <textarea id="evTomorrow" rows="2" placeholder="明天打算做什么..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:15px;resize:vertical;margin-top:4px;font-family:inherit;"></textarea>
     </div>
-    <button onclick="saveEvening()" style="width:100%;background:var(--blue);color:#fff;border:none;padding:12px;border-radius:20px;font-size:15px;font-weight:600;cursor:pointer;">💾 保存晚报</button>
-    <button onclick="generateMorning()" id="genBtn" style="width:100%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;padding:12px;border-radius:20px;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px;">🤖 AI生成明日早报</button>
+    <button onclick="saveEvening()" style="width:100%;background:var(--blue);color:#fff;border:none;padding:12px;border-radius:20px;font-size:15px;font-weight:600;cursor:pointer;">💾 保存晚报（可多次保存）</button>
+    <button onclick="dayDone()" id="doneBtn" style="width:100%;background:linear-gradient(135deg,#f5a623,#e03e3e);color:#fff;border:none;padding:12px;border-radius:20px;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px;">🌙 今日收工 · 生成明日早报</button>
     <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--sub);" id="genStatus"></div>
     <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--green);" id="saveStatus"></div>
   </div>
@@ -758,7 +758,117 @@ function renderEveningHistory() {
 }
 
 // ============================================================
-//  🤖 AI生成明日早报
+//  🌙 今日收工 & AI生成明日早报
+// ============================================================
+async function dayDone() {
+  // 先保存晚报
+  saveEveningSilent();
+
+  const apiKey = localStorage.getItem('skill4_ds_key');
+  if (!apiKey) {
+    document.getElementById('genStatus').textContent = '⚠️ 请在设置中填入DeepSeek API Key';
+    return;
+  }
+
+  document.getElementById('genStatus').textContent = '⏳ AI正在生成明日计划...';
+  document.getElementById('doneBtn').disabled = true;
+
+  const success = await generateTomorrowTasks(apiKey);
+
+  if (success) {
+    document.getElementById('genStatus').textContent = '✅ 明日早报已生成！明早打开即看 ✨';
+  }
+  document.getElementById('doneBtn').disabled = false;
+}
+
+function saveEveningSilent() {
+  const data = {
+    date: getDateKey(),
+    tasks: CONFIG.morningTasks.map(t => ({ text: t.text, done: loadTask(t.id) })),
+    hours: document.getElementById('evHours').value || '0',
+    summary: document.getElementById('evSummary').value,
+    problem: document.getElementById('evProblem').value,
+    tomorrow: document.getElementById('evTomorrow').value,
+    savedAt: new Date().toISOString()
+  };
+  const allEvenings = JSON.parse(localStorage.getItem('skill4_evenings') || '{}');
+  allEvenings[getDateKey()] = data;
+  localStorage.setItem('skill4_evenings', JSON.stringify(allEvenings));
+  localStorage.removeItem('skill4_draft_' + getDateKey());
+  pushToGitHub(data);
+  renderEveningHistory();
+}
+
+async function generateTomorrowTasks(apiKey) {
+  const allEvenings = JSON.parse(localStorage.getItem('skill4_evenings') || '{}');
+  const dates = Object.keys(allEvenings).sort();
+  const recentDates = dates.slice(-5);
+  const recentReports = recentDates.map(d => {
+    const e = allEvenings[d];
+    return `【${d}】学${e.hours}h。${e.summary || '无'}。问题：${e.problem || '无'}。计划：${e.tomorrow || '无'}`;
+  }).join('\n');
+
+  const todayData = allEvenings[getDateKey()];
+  const todaySummary = todayData ? (todayData.summary || '无') : '无';
+  const todayHours = todayData ? todayData.hours : '未知';
+  const todayProblems = todayData ? (todayData.problem || '无') : '无';
+  const todayDone = todayData ? todayData.tasks.filter(t=>t.done).map(t=>t.text).join('、') : '未知';
+
+  const daysLeft = Math.ceil((new Date('2026-12-19')-new Date())/(1000*86400));
+
+  const prompt = `你是考研备考日报助手。根据今天学习情况，生成明天任务清单。
+
+## 用户考试
+- 考研初试2026.12.19（应用心理专硕347）→ ${daysLeft}天后
+- 国考2026.11.28（练手）
+- 目标院校：华北理工大学/天津师范大学
+- 科目：普心(相生)、统计(端木)、测量(王永平)
+- 英语：刘晓艳语法→颉斌斌阅读→石雷鹏作文
+- 政治：徐涛强化班→腿姐技巧→肖四肖八
+- 阶段：一轮听课（7月下-9月中，现在是起步期）
+
+## 近期记录
+${recentReports || '（无）'}
+
+## 今日
+- 时长：${todayHours}h
+- 完成：${todayDone}
+- 总结：${todaySummary}
+- 问题：${todayProblems}
+
+## 要求
+明天任务3-5条。JSON数组：[{text:任务15字内, tag:必做must/选做opt}]。循序渐进不跳跃。只返回JSON数组。`;
+
+  try {
+    const resp = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+      body: JSON.stringify({ model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }], max_tokens: 400, temperature: 0.7 })
+    });
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.error?.message || 'API错误');
+
+    const reply = json.choices[0].message.content.trim();
+    const match = reply.match(/\[.*\]/s);
+    if (!match) throw new Error('格式异常');
+
+    const tasks = JSON.parse(match[0]);
+    if (!Array.isArray(tasks)) throw new Error('非数组');
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tKey = `${tomorrow.getFullYear()}-${tomorrow.getMonth()+1}-${tomorrow.getDate()}`;
+    localStorage.setItem('skill4_ai_tasks_' + tKey, JSON.stringify(tasks));
+    localStorage.setItem('skill4_ai_tasks_date', tKey);
+    return true;
+  } catch(e) {
+    document.getElementById('genStatus').textContent = '⚠️ 生成失败：' + e.message;
+    return false;
+  }
+}
+
+// ============================================================
+//  🤖 旧的generateMorning（保留兼容）
 // ============================================================
 async function generateMorning() {
   const apiKey = localStorage.getItem('skill4_ds_key');
