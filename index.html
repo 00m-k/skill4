@@ -424,7 +424,22 @@
 
 </div>
 
-<div class="footer">skill4 · 个人日报系统</div>
+<div class="footer">
+  skill4 · 个人日报系统
+  <span onclick="toggleSettings()" style="cursor:pointer;margin-left:8px;">⚙️</span>
+</div>
+
+<!-- ===== SETTINGS ===== -->
+<div id="settingsPanel" style="display:none;background:var(--card);border-radius:var(--radius);padding:16px;margin:12px 0;box-shadow:var(--shadow);">
+  <div class="section-title">⚙️ 设置</div>
+  <div style="margin-bottom:8px;">
+    <label style="font-size:13px;color:var(--sub);">GitHub Token（选填）</label>
+    <input type="password" id="ghTokenInput" placeholder="ghp_xxxx" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:14px;margin-top:4px;">
+    <div style="font-size:11px;color:#999;margin-top:4px;">配置后可自动同步晚报到GitHub。不用每次打开电脑。</div>
+  </div>
+  <button onclick="saveToken()" style="background:var(--blue);color:#fff;border:none;padding:8px 24px;border-radius:16px;font-size:13px;font-weight:600;cursor:pointer;">保存</button>
+  <span id="tokenStatus" style="margin-left:10px;font-size:12px;color:var(--green);"></span>
+</div>
 
 </div><!-- /mainContent -->
 
@@ -685,6 +700,28 @@ function renderEveningHistory() {
       <b>${d}</b> · ${e.hours}h · ${e.summary ? e.summary.slice(0,30)+(e.summary.length>30?'...':'') : '未写总结'}
     </div>`;
   }).join('');
+}
+
+// ============================================================
+//  ⚙️ 设置
+// ============================================================
+function toggleSettings() {
+  const p = document.getElementById('settingsPanel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+  const saved = localStorage.getItem('skill4_gh_token');
+  if (saved) document.getElementById('ghTokenInput').value = saved;
+}
+
+function saveToken() {
+  const token = document.getElementById('ghTokenInput').value.trim();
+  if (token) {
+    localStorage.setItem('skill4_gh_token', token);
+    document.getElementById('tokenStatus').textContent = '✅ 已保存';
+  } else {
+    localStorage.removeItem('skill4_gh_token');
+    document.getElementById('tokenStatus').textContent = '已清除';
+  }
+  setTimeout(() => document.getElementById('tokenStatus').textContent = '', 2000);
 }
 
 // Task localStorage
