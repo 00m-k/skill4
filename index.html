@@ -622,10 +622,9 @@ function saveEvening() {
   // 清草稿
   localStorage.removeItem('skill4_draft_' + getDateKey());
 
-  document.getElementById('saveStatus').textContent = '✅ 已保存！';
-  setTimeout(() => document.getElementById('saveStatus').textContent = '', 2000);
+  document.getElementById('saveStatus').textContent = '✅ 已保存（可继续修改，再次保存覆盖）';
 
-  // 同时尝试推送到GitHub
+  // 同时推送到GitHub
   pushToGitHub(data);
 
   renderEveningHistory();
@@ -633,36 +632,66 @@ function saveEvening() {
 
 function pushToGitHub(data) {
   const token = localStorage.getItem('skill4_gh_token');
-  if (!token) return; // 没配token就跳过
+  if (!token) {
+    document.getElementById('saveStatus').textContent = '✅ 已保存到手机（未配置GitHub Token，无法同步）';
+    return;
+  }
 
   const path = 'data/' + getDateKey() + '.json';
-  const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+  const jsonStr = JSON.stringify(data, null, 2);
+  // 使用 TextEncoder 避免中文字符问题
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(jsonStr);
+  let binary = '';
+  bytes.forEach(b => binary += String.fromCharCode(b));
+  const content = btoa(binary);
 
-  // 先尝试获取文件sha（如果已存在则更新）
-  fetch(`https://api.github.com/repos/00m-k/skill4/contents/${path}`, {
-    headers: { 'Authorization': 'token ' + token }
+  const tokenInput = document.getElementById('saveStatus');
+  tokenInput.textContent = '⏳ 同步中...';
+
+  // 先获取文件sha（如果已存在则更新）
+  fetch('https://api.github.com/repos/00m-k/skill4/contents/' + path, {
+    headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github+json' }
   })
-  .then(r => r.ok ? r.json() : null)
+  .then(r => {
+    if (r.status === 401) throw new Error('Token无效');
+    if (r.status === 404) return null;
+    return r.json();
+  })
   .then(existing => {
-    const body = { message: '晚报: ' + getDateKey(), content: content };
-    if (existing && existing.sha) {
-      body.sha = existing.sha;
-    }
-    return fetch(`https://api.github.com/repos/00m-k/skill4/contents/${path}`, {
+    const body = { message: '晚报: ' + getDateKey(), content: content, branch: 'main' };
+    if (existing && existing.sha) body.sha = existing.sha;
+    return fetch('https://api.github.com/repos/00m-k/skill4/contents/' + path, {
       method: 'PUT',
-      headers: { 'Authorization': 'token ' + token, 'Content-Type': 'application/json' },
+      headers: { 'Authorization': 'token ' + token, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json' },
       body: JSON.stringify(body)
     });
   })
   .then(r => {
     if (r && r.ok) {
       document.getElementById('saveStatus').textContent = '✅ 已保存并同步到GitHub！';
+    } else if (r && r.status === 401) {
+      document.getElementById('saveStatus').textContent = '⚠️ Token无效，请检查设置';
     }
   })
-  .catch(() => {}); // 静默失败，本地已保存
+  .catch(e => {
+    document.getElementById('saveStatus').textContent = '⚠️ 同步失败：' + e.message + '（数据已存手机）';
+  });
 }
 
 function loadEveningDraft() {
+  // 优先加载已保存的晚报（可继续编辑）
+  const allEvenings = JSON.parse(localStorage.getItem('skill4_evenings') || '{}');
+  const saved = allEvenings[getDateKey()];
+  if (saved) {
+    document.getElementById('evHours').value = saved.hours || '';
+    document.getElementById('evSummary').value = saved.summary || '';
+    document.getElementById('evProblem').value = saved.problem || '';
+    document.getElementById('evTomorrow').value = saved.tomorrow || '';
+    document.getElementById('saveStatus').textContent = '📝 已加载今日晚报，可继续修改后重新保存';
+    return;
+  }
+  // 回退到草稿
   const draft = localStorage.getItem('skill4_draft_' + getDateKey());
   if (draft) {
     try {
@@ -675,15 +704,18 @@ function loadEveningDraft() {
   }
   // 自动保存草稿
   ['evHours','evSummary','evProblem','evTomorrow'].forEach(id => {
-    document.getElementById(id).addEventListener('input', () => {
-      const draft = {
-        hours: document.getElementById('evHours').value,
-        summary: document.getElementById('evSummary').value,
-        problem: document.getElementById('evProblem').value,
-        tomorrow: document.getElementById('evTomorrow').value
-      };
-      localStorage.setItem('skill4_draft_' + getDateKey(), JSON.stringify(draft));
-    });
+    if (!document.getElementById(id)._bound) {
+      document.getElementById(id)._bound = true;
+      document.getElementById(id).addEventListener('input', () => {
+        const draft = {
+          hours: document.getElementById('evHours').value,
+          summary: document.getElementById('evSummary').value,
+          problem: document.getElementById('evProblem').value,
+          tomorrow: document.getElementById('evTomorrow').value
+        };
+        localStorage.setItem('skill4_draft_' + getDateKey(), JSON.stringify(draft));
+      });
+    }
   });
 }
 
