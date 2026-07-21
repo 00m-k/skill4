@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>日报 | 考研备考助手</title>
+<style>
+  :root {
+    --bg: #faf9f6;
+    --card: #ffffff;
+    --text: #2c2c2c;
+    --sub: #888888;
+    --blue: #3b6ff5;
+    --green: #22a06b;
+    --red: #e03e3e;
+    --orange: #f5a623;
+    --border: #e8e5e0;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06);
+    --radius: 12px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 16px;
+    line-height: 1.6;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ===== Header ===== */
+  .header {
+    text-align: center;
+    padding: 12px 0 8px;
+  }
+  .header .date {
+    font-size: 13px;
+    color: var(--sub);
+    margin-bottom: 4px;
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  /* ===== Toggle ===== */
+  .toggle-wrap {
+    display: flex;
+    background: var(--card);
+    border-radius: 20px;
+    padding: 3px;
+    margin: 12px 0;
+    box-shadow: var(--shadow);
+  }
+  .toggle-wrap button {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 8px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--sub);
+    border-radius: 18px;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .toggle-wrap button.active {
+    background: var(--blue);
+    color: #fff;
+  }
+
+  /* ===== Countdown ===== */
+  .countdown-row {
+    display: flex;
+    gap: 10px;
+    margin: 12px 0;
+  }
+  .countdown-card {
+    flex: 1;
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 14px 10px;
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .countdown-card .days {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--blue);
+    line-height: 1;
+  }
+  .countdown-card.fire .days { color: var(--red); }
+  .countdown-card .label {
+    font-size: 11px;
+    color: var(--sub);
+    margin-top: 4px;
+  }
+  .countdown-card .date-sub {
+    font-size: 10px;
+    color: #aaa;
+  }
+
+  /* ===== Section ===== */
+  .section {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin: 12px 0;
+    box-shadow: var(--shadow);
+  }
+  .section-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* ===== Task List ===== */
+  .task-list { list-style: none; }
+  .task-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .task-list li:last-child { border-bottom: none; }
+  .task-list input[type="checkbox"] {
+    width: 20px; height: 20px;
+    accent-color: var(--green);
+    flex-shrink: 0;
+    margin-top: 1px;
+    cursor: pointer;
+  }
+  .task-list input:checked + span {
+    text-decoration: line-through;
+    color: #bbb;
+  }
+  .task-tag {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 4px;
+    font-weight: 600;
+  }
+  .tag-must { background: #fde8e8; color: var(--red); }
+  .tag-opt { background: #e8f4fd; color: var(--blue); }
+
+  /* ===== Updates ===== */
+  .update-item {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .update-item:last-child { border-bottom: none; }
+  .update-item .badge {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .badge-new { background: #e8f5e9; color: var(--green); }
+  .badge-none { background: #f5f5f5; color: #999; }
+  .badge-soon { background: #fff3e0; color: var(--orange); }
+  .update-item .title { font-weight: 600; }
+  .update-item .detail { color: var(--sub); font-size: 12px; margin-top: 2px; }
+
+  /* ===== Reminders ===== */
+  .reminder-list { list-style: none; }
+  .reminder-list li {
+    display: flex;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .reminder-list li:last-child { border-bottom: none; }
+  .reminder-date {
+    font-size: 11px;
+    color: var(--blue);
+    font-weight: 700;
+    white-space: nowrap;
+    min-width: 90px;
+  }
+
+  /* ===== Weekly ===== */
+  .week-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+    font-size: 11px;
+    text-align: center;
+  }
+  .week-grid .day {
+    background: #f5f4f1;
+    border-radius: 8px;
+    padding: 8px 2px;
+  }
+  .week-grid .day.today {
+    background: var(--blue);
+    color: #fff;
+    font-weight: 700;
+  }
+  .week-grid .day .dow { font-weight: 600; margin-bottom: 2px; }
+  .week-grid .day .dnum { font-size: 10px; opacity: 0.7; }
+
+  /* ===== Progress ===== */
+  .progress-bar {
+    height: 6px;
+    background: #eee;
+    border-radius: 3px;
+    margin: 6px 0 12px;
+    overflow: hidden;
+  }
+  .progress-bar .fill {
+    height: 100%;
+    background: var(--blue);
+    border-radius: 3px;
+    transition: width .3s;
+  }
+  .subject-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+  .subject-row .pct { color: var(--blue); font-weight: 600; }
+
+  /* ===== Teacher tags ===== */
+  .teacher-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .teacher-chip {
+    font-size: 11px;
+    background: #f0f4ff;
+    color: var(--blue);
+    padding: 4px 10px;
+    border-radius: 14px;
+    font-weight: 500;
+  }
+
+  /* ===== Footer ===== */
+  .footer {
+    text-align: center;
+    padding: 16px 0;
+    font-size: 11px;
+    color: #ccc;
+  }
+
+  /* ===== Hidden ===== */
+  .hidden { display: none !important; }
+
+  /* ===== Check-in ===== */
+  .checkin-btn {
+    display: block;
+    width: 100%;
+    border: 2px dashed var(--border);
+    background: transparent;
+    border-radius: var(--radius);
+    padding: 14px;
+    font-size: 14px;
+    color: var(--sub);
+    cursor: pointer;
+    margin-top: 8px;
+    transition: all .2s;
+  }
+  .checkin-btn.done {
+    border-color: var(--green);
+    background: #e8f5e9;
+    color: var(--green);
+    font-weight: 700;
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<div class="header">
+  <div class="date" id="dateDisplay"></div>
+  <h1>🌅 日报</h1>
+</div>
+
+<!-- ===== MORNING / EVENING TOGGLE ===== -->
+<div class="toggle-wrap">
+  <button id="btnMorning" class="active" onclick="switchTab('morning')">☀️ 早报</button>
+  <button id="btnEvening" onclick="switchTab('evening')">🌙 晚报</button>
+</div>
+
+<!-- ===== COUNTDOWN ===== -->
+<div class="countdown-row">
+  <div class="countdown-card fire" id="cd1">
+    <div class="days" id="daysExam">--</div>
+    <div class="label">考研初试</div>
+    <div class="date-sub" id="dateExam">2026.12.19</div>
+  </div>
+  <div class="countdown-card" id="cd2">
+    <div class="days" id="daysGK">--</div>
+    <div class="label">国考笔试</div>
+    <div class="date-sub">2026.11.28</div>
+  </div>
+  <div class="countdown-card" id="cd3">
+    <div class="days" id="daysSK">--</div>
+    <div class="label">黑龙江省考</div>
+    <div class="date-sub">2027.03</div>
+  </div>
+</div>
+
+<!-- ===== MORNING CONTENT ===== -->
+<div id="morningContent">
+
+  <!-- 今日任务 -->
+  <div class="section">
+    <div class="section-title">📋 今日任务</div>
+    <ul class="task-list" id="taskList"></ul>
+  </div>
+
+  <!-- 教师编动态 -->
+  <div class="section">
+    <div class="section-title">🏫 教师编动态 <span style="font-size:11px;color:var(--sub);font-weight:400;">— 汤原/佳木斯</span></div>
+    <div id="teacherUpdates"></div>
+  </div>
+
+  <!-- 近期提醒 -->
+  <div class="section">
+    <div class="section-title">📅 近期重要提醒</div>
+    <ul class="reminder-list" id="reminderList"></ul>
+  </div>
+
+  <!-- 本周计划 -->
+  <div class="section">
+    <div class="section-title">📐 本周计划（第1周）</div>
+    <div class="week-grid" id="weekGrid"></div>
+    <div style="margin-top:12px;font-size:13px;color:var(--sub);" id="weekSummary"></div>
+  </div>
+
+  <!-- 各科进度 -->
+  <div class="section">
+    <div class="section-title">📊 各科学习进度</div>
+    <div id="subjectProgress"></div>
+  </div>
+
+  <!-- 已定老师 -->
+  <div class="section">
+    <div class="section-title">👨‍🏫 各科老师</div>
+    <div class="teacher-row" id="teacherChips"></div>
+  </div>
+
+</div>
+
+<!-- ===== EVENING CONTENT ===== -->
+<div id="eveningContent" class="hidden">
+
+  <!-- 今日打卡 -->
+  <div class="section">
+    <div class="section-title">✅ 今日完成打卡</div>
+    <ul class="task-list" id="eveningTaskList"></ul>
+    <button class="checkin-btn" id="checkinBtn" onclick="doCheckin()">📝 点击完成今日打卡</button>
+    <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--sub);" id="checkinStatus"></div>
+  </div>
+
+  <!-- 明日预告 -->
+  <div class="section">
+    <div class="section-title">🔮 明日预告</div>
+    <div style="font-size:14px;color:var(--sub);" id="tomorrowPreview"></div>
+  </div>
+
+  <!-- 周进度 -->
+  <div class="section">
+    <div class="section-title">📈 本周进度</div>
+    <div id="weekProgress"></div>
+  </div>
+
+</div>
+
+<div class="footer">skill4 · 考研备考日报系统</div>
+
+<script>
+// ============================================================
+//  📝 数据配置区 — 每日更新这里即可
+// ============================================================
+const CONFIG = {
+  currentWeek: 1,
+  weekLabel: '7.22 - 7.27',
+
+  exams: [
+    { name: '考研初试', date: '2026-12-19', key: 'exam' },
+    { name: '国考笔试', date: '2026-11-28', key: 'gk' },
+    { name: '黑龙江省考', date: '2027-03-15', key: 'sk' },
+  ],
+
+  // 早报 — 今日任务
+  morningTasks: [
+    { text: '相生普心 · 第1节 30min', tag: 'must', id: 't1' },
+    { text: '不背单词 · 50词', tag: 'must', id: 't2' },
+    { text: '淘宝APP搜"客服招聘" · 了解流程', tag: 'must', id: 't3' },
+    { text: '刘晓艳语法 · 试听1节', tag: 'opt', id: 't4' },
+  ],
+
+  // 教师编动态
+  teacherUpdates: [
+    { type: 'none', title: '今日无适合你的新增岗位', detail: '上半年佳木斯教师岗(含汤原吉祥乡学校)已结束。下半年公告预计8-10月发布。持续监控中。' },
+  ],
+
+  // 近期提醒
+  reminders: [
+    { date: '7.22-7.27', text: '本周：普心5节 + 单词6天 + 云客服报名' },
+    { date: '8月起', text: '开始徐涛政治强化班' },
+    { date: '8月-9月', text: '各校发布2027考研招生简章' },
+    { date: '9.24-9.27', text: '考研预报名 ⚠️' },
+    { date: '10.8-10.25', text: '考研正式报名 🔴 不可错过' },
+    { date: '10.15-10.24', text: '国考报名' },
+    { date: '11.28-11.29', text: '国考笔试' },
+    { date: '12.19-12.21', text: '🔥 考研初试' },
+  ],
+
+  // 本周计划每日安排
+  weekPlan: [
+    { dow: '二', date: '7.22', tasks: '普心1 + 单词 + 云客服' },
+    { dow: '三', date: '7.23', tasks: '普心2 + 单词 + 语法1' },
+    { dow: '四', date: '7.24', tasks: '普心3 + 单词 + 语法1' },
+    { dow: '五', date: '7.25', tasks: '普心4 + 单词 + 语法1' },
+    { dow: '六', date: '7.26', tasks: '普心5 + 单词 + 试听端木' },
+    { dow: '日', date: '7.27', tasks: '休息/补漏 + 单词 + 试听王永平' },
+  ],
+
+  // 各科进度
+  subjects: [
+    { name: '347普心（相生）', pct: 0, total: '13h', done: '0h' },
+    { name: '347统计（端木）', pct: 0, total: '14h', done: '0h' },
+    { name: '347测量（王永平）', pct: 0, total: '8h', done: '0h' },
+    { name: '英语单词', pct: 0, total: '全程', done: '0天' },
+    { name: '英语语法（刘晓艳）', pct: 0, total: '14h', done: '0h' },
+    { name: '英语阅读（颉斌斌）', pct: 0, total: '16h', done: '0h' },
+    { name: '政治（徐涛强化）', pct: 0, total: '37h', done: '0h' },
+    { name: '国考行测+申论', pct: 0, total: '30h', done: '0h' },
+  ],
+
+  // 老师清单
+  teachers: [
+    '普心:相生(晴天)', '统计:端木(晴天)', '测量:王永平(勤思)',
+    '语法:刘晓艳', '阅读:颉斌斌', '作文:石雷鹏',
+    '政治:徐涛+腿姐', '言语:阿里木江', '判断:花生十三',
+  ],
+
+  // 晚报 — 明日预告
+  tomorrowPreview: '普心第2节 + 单词50词 + 刘晓艳语法第1节',
+};
+
+// ============================================================
+//  ⚙️ 核心逻辑
+// ============================================================
+
+// 倒计时
+function updateCountdowns() {
+  const now = new Date();
+  now.setHours(0,0,0,0);
+  const targets = {
+    exam: new Date('2026-12-19'),
+    gk: new Date('2026-11-28'),
+    sk: new Date('2027-03-15'),
+  };
+  for (const [k, d] of Object.entries(targets)) {
+    const diff = Math.ceil((d - now) / (1000 * 60 * 60 * 24));
+    const el = document.getElementById('days' + ({exam:'Exam',gk:'GK',sk:'SK'}[k]));
+    if (el) el.textContent = diff >= 0 ? diff : '—';
+  }
+}
+
+// 日期显示
+function updateDate() {
+  const now = new Date();
+  const weekMap = ['日','一','二','三','四','五','六'];
+  const str = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 周${weekMap[now.getDay()]}`;
+  document.getElementById('dateDisplay').textContent = str;
+}
+
+// Tab切换
+function switchTab(tab) {
+  const isMorning = tab === 'morning';
+  document.getElementById('morningContent').classList.toggle('hidden', !isMorning);
+  document.getElementById('eveningContent').classList.toggle('hidden', isMorning);
+  document.getElementById('btnMorning').classList.toggle('active', isMorning);
+  document.getElementById('btnEvening').classList.toggle('active', !isMorning);
+  document.querySelector('.header h1').textContent = isMorning ? '🌅 早报' : '🌙 晚报';
+}
+
+// 自动判断早报/晚报
+function autoTab() {
+  const hour = new Date().getHours();
+  switchTab(hour < 17 ? 'morning' : 'evening');
+}
+
+// 渲染任务列表
+function renderTasks() {
+  const list = document.getElementById('taskList');
+  list.innerHTML = CONFIG.morningTasks.map(t => `
+    <li>
+      <input type="checkbox" id="${t.id}" onchange="saveTask('${t.id}')" ${loadTask(t.id)?'checked':''}>
+      <span>${t.text} ${t.tag==='must'?'<span class="task-tag tag-must">必做</span>':'<span class="task-tag tag-opt">选做</span>'}</span>
+    </li>
+  `).join('');
+}
+
+function renderEveningTasks() {
+  const list = document.getElementById('eveningTaskList');
+  list.innerHTML = CONFIG.morningTasks.map(t => {
+    const checked = loadTask(t.id);
+    return `
+      <li>
+        <input type="checkbox" disabled ${checked?'checked':''}>
+        <span style="${checked?'text-decoration:line-through;color:#bbb;':''}">${t.text}</span>
+        ${checked?' <span style="font-size:12px;color:var(--green);">✅</span>':''}
+      </li>
+    `;
+  }).join('');
+
+  const allDone = CONFIG.morningTasks.every(t => loadTask(t.id));
+  const btn = document.getElementById('checkinBtn');
+  const status = document.getElementById('checkinStatus');
+  if (allDone && loadTask('__checkin__')) {
+    btn.classList.add('done');
+    btn.textContent = '🎉 今日已完成！';
+    status.textContent = '太棒了，明天继续加油！';
+  } else if (allDone) {
+    btn.classList.add('done');
+    btn.textContent = '📝 点击完成今日打卡';
+    status.textContent = '所有任务已完成，点此打卡';
+  } else {
+    btn.classList.remove('done');
+    btn.textContent = '📝 点击完成今日打卡';
+    const done = CONFIG.morningTasks.filter(t => loadTask(t.id)).length;
+    status.textContent = `已完成 ${done}/${CONFIG.morningTasks.length} 项任务`;
+  }
+}
+
+// Task localStorage
+function saveTask(id) {
+  const el = document.getElementById(id);
+  if (el) localStorage.setItem('daily_' + getDateKey() + '_' + id, el.checked ? '1' : '0');
+  renderEveningTasks();
+}
+function loadTask(id) {
+  return localStorage.getItem('daily_' + getDateKey() + '_' + id) === '1';
+}
+function getDateKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+}
+
+function doCheckin() {
+  const allDone = CONFIG.morningTasks.every(t => loadTask(t.id));
+  if (!allDone) { alert('还有任务未完成哦～'); return; }
+  localStorage.setItem('daily_' + getDateKey() + '__checkin__', '1');
+  renderEveningTasks();
+}
+
+// 渲染教师编动态
+function renderTeacherUpdates() {
+  const el = document.getElementById('teacherUpdates');
+  el.innerHTML = CONFIG.teacherUpdates.map(u => {
+    const badge = u.type === 'new' ? '<span class="badge badge-new">🆕 新岗位</span>' :
+                  u.type === 'soon' ? '<span class="badge badge-soon">⏰ 即将截止</span>' :
+                  '<span class="badge badge-none">—</span>';
+    return `<div class="update-item">${badge}<div class="title">${u.title}</div><div class="detail">${u.detail||''}</div></div>`;
+  }).join('');
+}
+
+// 渲染近期提醒
+function renderReminders() {
+  const el = document.getElementById('reminderList');
+  el.innerHTML = CONFIG.reminders.map(r =>
+    `<li><span class="reminder-date">${r.date}</span><span>${r.text}</span></li>`
+  ).join('');
+}
+
+// 渲染周计划
+function renderWeekPlan() {
+  const today = new Date();
+  const todayStr = `${today.getMonth()+1}.${today.getDate()}`;
+  const grid = document.getElementById('weekGrid');
+  grid.innerHTML = CONFIG.weekPlan.map(d => {
+    const isToday = d.date === todayStr;
+    return `<div class="day${isToday?' today':''}"><div class="dow">周${d.dow}</div><div class="dnum">${d.date}</div></div>`;
+  }).join('');
+  document.getElementById('weekSummary').innerHTML = CONFIG.weekPlan.map(d =>
+    `<div style="margin:4px 0"><b>周${d.dow}(${d.date})：</b>${d.tasks}</div>`
+  ).join('');
+}
+
+// 渲染进度条
+function renderSubjectProgress() {
+  const el = document.getElementById('subjectProgress');
+  el.innerHTML = CONFIG.subjects.map(s => `
+    <div class="subject-row"><span>${s.name}</span><span class="pct">${s.done} / ${s.total}</span></div>
+    <div class="progress-bar"><div class="fill" style="width:${s.pct}%"></div></div>
+  `).join('');
+}
+
+// 渲染老师标签
+function renderTeachers() {
+  document.getElementById('teacherChips').innerHTML = CONFIG.teachers.map(t =>
+    `<span class="teacher-chip">${t}</span>`
+  ).join('');
+}
+
+// 渲染晚报
+function renderEvening() {
+  renderEveningTasks();
+  document.getElementById('tomorrowPreview').textContent = CONFIG.tomorrowPreview;
+  document.getElementById('weekProgress').innerHTML = `
+    <div style="font-size:13px;color:var(--sub);">
+      本周 ${CONFIG.weekLabel} · 第${CONFIG.currentWeek}周<br><br>
+      ${CONFIG.weekPlan.map(d => `<div style="margin:3px 0">周${d.dow}：${d.tasks}</div>`).join('')}
+    </div>
+  `;
+}
+
+// ============================================================
+//  🚀 启动
+// ============================================================
+function init() {
+  updateDate();
+  updateCountdowns();
+  autoTab();
+  renderTasks();
+  renderTeacherUpdates();
+  renderReminders();
+  renderWeekPlan();
+  renderSubjectProgress();
+  renderTeachers();
+  renderEvening();
+  // 每天刷新倒计时
+  setInterval(updateCountdowns, 60000);
+}
+
+init();
+</script>
+</body>
+</html>
