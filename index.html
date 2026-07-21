@@ -407,6 +407,8 @@
       <textarea id="evTomorrow" rows="2" placeholder="明天打算做什么..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:15px;resize:vertical;margin-top:4px;font-family:inherit;"></textarea>
     </div>
     <button onclick="saveEvening()" style="width:100%;background:var(--blue);color:#fff;border:none;padding:12px;border-radius:20px;font-size:15px;font-weight:600;cursor:pointer;">💾 保存晚报</button>
+    <button onclick="generateMorning()" id="genBtn" style="width:100%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;padding:12px;border-radius:20px;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px;">🤖 AI生成明日早报</button>
+    <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--sub);" id="genStatus"></div>
     <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--green);" id="saveStatus"></div>
   </div>
 
@@ -435,7 +437,12 @@
   <div style="margin-bottom:8px;">
     <label style="font-size:13px;color:var(--sub);">GitHub Token（选填）</label>
     <input type="password" id="ghTokenInput" placeholder="ghp_xxxx" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:14px;margin-top:4px;">
-    <div style="font-size:11px;color:#999;margin-top:4px;">配置后可自动同步晚报到GitHub。不用每次打开电脑。</div>
+    <div style="font-size:11px;color:#999;margin-top:4px;">配置后可自动同步晚报到GitHub</div>
+  </div>
+  <div style="margin-bottom:8px;">
+    <label style="font-size:13px;color:var(--sub);">DeepSeek API Key（选填）</label>
+    <input type="password" id="dsKeyInput" placeholder="sk-xxxx" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:14px;margin-top:4px;">
+    <div style="font-size:11px;color:#999;margin-top:4px;">配置后可AI自动生成明日早报。</div>
   </div>
   <button onclick="saveToken()" style="background:var(--blue);color:#fff;border:none;padding:8px 24px;border-radius:16px;font-size:13px;font-weight:600;cursor:pointer;">保存</button>
   <span id="tokenStatus" style="margin-left:10px;font-size:12px;color:var(--green);"></span>
@@ -562,12 +569,28 @@ function autoTab() {
 // 渲染任务列表
 function renderTasks() {
   const list = document.getElementById('taskList');
-  list.innerHTML = CONFIG.morningTasks.map(t => `
+  // 优先使用AI生成的任务
+  const aiTasks = getAITasks();
+  const tasks = aiTasks || CONFIG.morningTasks;
+  list.innerHTML = tasks.map((t, i) => `
     <li>
-      <input type="checkbox" id="${t.id}" onchange="saveTask('${t.id}')" ${loadTask(t.id)?'checked':''}>
+      <input type="checkbox" id="t${i}" onchange="saveTask('t${i}')" ${loadTask('t${i}')?'checked':''}>
       <span>${t.text} ${t.tag==='must'?'<span class="task-tag tag-must">必做</span>':'<span class="task-tag tag-opt">选做</span>'}</span>
     </li>
   `).join('');
+  if (aiTasks) {
+    document.getElementById('taskList').parentElement.querySelector('.section-title').textContent = '📋 今日任务（AI生成）';
+  }
+}
+
+function getAITasks() {
+  const aiDate = localStorage.getItem('skill4_ai_tasks_date');
+  if (aiDate === getDateKey()) {
+    try {
+      return JSON.parse(localStorage.getItem('skill4_ai_tasks_' + getDateKey()));
+    } catch(e) {}
+  }
+  return null;
 }
 
 function renderEveningTasks() {
@@ -735,24 +758,125 @@ function renderEveningHistory() {
 }
 
 // ============================================================
+//  🤖 AI生成明日早报
+// ============================================================
+async function generateMorning() {
+  const apiKey = localStorage.getItem('skill4_ds_key');
+  if (!apiKey) {
+    document.getElementById('genStatus').textContent = '⚠️ 请先在设置中填入DeepSeek API Key';
+    return;
+  }
+
+  // 收集近期晚报数据
+  const allEvenings = JSON.parse(localStorage.getItem('skill4_evenings') || '{}');
+  const dates = Object.keys(allEvenings).sort();
+  const recentDates = dates.slice(-5); // 最近5天
+  const recentReports = recentDates.map(d => {
+    const e = allEvenings[d];
+    return `【${d}】学习${e.hours}h。${e.summary || '无总结'}。${e.problem ? '问题：'+e.problem : ''}明日计划：${e.tomorrow || '无'}`;
+  }).join('\n');
+
+  const todayData = allEvenings[getDateKey()];
+  const todaySummary = todayData ? (todayData.summary || '未填写总结') : '未写晚报';
+  const todayHours = todayData ? todayData.hours : '未知';
+  const todayProblems = todayData ? (todayData.problem || '无') : '无';
+  const todayDoneTasks = todayData ? todayData.tasks.filter(t=>t.done).map(t=>t.text).join('、') : '未知';
+
+  const prompt = `你是考研备考日报助手。根据用户今天的学习情况，生成明天的学习任务清单。
+
+## 用户考试计划
+- 考研初试：2026年12月19日（应用心理专硕347）→ 约${Math.ceil((new Date('2026-12-19')-new Date())/(1000*86400))}天后
+- 国考笔试：2026年11月28日（练手）
+- 目标院校：华北理工大学/天津师范大学
+- 考试科目：普心(相生)、统计(端木)、测量(王永平)
+- 英语：刘晓艳语法→颉斌斌阅读→石雷鹏作文
+- 政治：徐涛强化班→腿姐技巧→肖四肖八
+
+## 整体学习阶段
+- 一轮听课理解：7月下-9月中（专业课+英语语法+政治启动）
+- 二轮精读刷题：9月中-10月底
+- 三轮背诵真题：11月
+- 四轮模考冲刺：12月
+
+## 近期学习记录
+${recentReports || '（暂无历史记录）'}
+
+## 今日情况
+- 学习时长：${todayHours}h
+- 已完成任务：${todayDoneTasks}
+- 总结：${todaySummary}
+- 遇到问题：${todayProblems}
+
+## 要求
+请生成明天的学习任务清单（3-5条），格式为JSON数组。
+每条任务包含：text(任务描述，简明扼要15字以内)、tag(必做填\"must\"，选做填\"opt\")。
+循序渐进，考虑已完成进度，不要跳跃阶段。
+只返回JSON数组，不要其他文字。`;
+
+  document.getElementById('genStatus').textContent = '⏳ AI思考中...';
+  document.getElementById('genBtn').disabled = true;
+
+  try {
+    const resp = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 500,
+        temperature: 0.7
+      })
+    });
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.error?.message || 'API错误');
+
+    const reply = json.choices[0].message.content.trim();
+    // 提取JSON
+    const match = reply.match(/\[.*\]/s);
+    if (!match) throw new Error('AI返回格式异常');
+
+    const tasks = JSON.parse(match[0]);
+    if (!Array.isArray(tasks) || !tasks.length) throw new Error('任务列表为空');
+
+    // 保存为明日任务
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tKey = `${tomorrow.getFullYear()}-${tomorrow.getMonth()+1}-${tomorrow.getDate()}`;
+    localStorage.setItem('skill4_ai_tasks_' + tKey, JSON.stringify(tasks));
+    localStorage.setItem('skill4_ai_tasks_date', tKey);
+
+    // 同时更新今日的明日计划
+    document.getElementById('evTomorrow').value = tasks.map(t=>t.text).join('；');
+    saveEvening();
+
+    document.getElementById('genStatus').textContent = '✅ 明日早报已生成！切换到早报查看';
+    // 自动切到早报
+    setTimeout(() => switchTab('morning'), 1500);
+
+  } catch(e) {
+    document.getElementById('genStatus').textContent = '⚠️ 生成失败：' + e.message;
+  }
+  document.getElementById('genBtn').disabled = false;
+}
+
+// ============================================================
 //  ⚙️ 设置
 // ============================================================
 function toggleSettings() {
   const p = document.getElementById('settingsPanel');
   p.style.display = p.style.display === 'none' ? 'block' : 'none';
-  const saved = localStorage.getItem('skill4_gh_token');
-  if (saved) document.getElementById('ghTokenInput').value = saved;
+  const savedGh = localStorage.getItem('skill4_gh_token');
+  if (savedGh) document.getElementById('ghTokenInput').value = savedGh;
+  const savedDs = localStorage.getItem('skill4_ds_key');
+  if (savedDs) document.getElementById('dsKeyInput').value = savedDs;
 }
 
 function saveToken() {
-  const token = document.getElementById('ghTokenInput').value.trim();
-  if (token) {
-    localStorage.setItem('skill4_gh_token', token);
-    document.getElementById('tokenStatus').textContent = '✅ 已保存';
-  } else {
-    localStorage.removeItem('skill4_gh_token');
-    document.getElementById('tokenStatus').textContent = '已清除';
-  }
+  const gh = document.getElementById('ghTokenInput').value.trim();
+  const ds = document.getElementById('dsKeyInput').value.trim();
+  if (gh) localStorage.setItem('skill4_gh_token', gh); else localStorage.removeItem('skill4_gh_token');
+  if (ds) localStorage.setItem('skill4_ds_key', ds); else localStorage.removeItem('skill4_ds_key');
+  document.getElementById('tokenStatus').textContent = '✅ 已保存';
   setTimeout(() => document.getElementById('tokenStatus').textContent = '', 2000);
 }
 
