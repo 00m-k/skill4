@@ -381,23 +381,44 @@
 <!-- ===== EVENING CONTENT ===== -->
 <div id="eveningContent" class="hidden">
 
-  <!-- 今日打卡 -->
+  <!-- 今日任务勾选 -->
   <div class="section">
-    <div class="section-title">✅ 今日完成打卡</div>
+    <div class="section-title">✅ 今日任务完成情况</div>
     <ul class="task-list" id="eveningTaskList"></ul>
-    <button class="checkin-btn" id="checkinBtn" onclick="doCheckin()">📝 点击完成今日打卡</button>
-    <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--sub);" id="checkinStatus"></div>
   </div>
 
-  <!-- 明日预告 -->
+  <!-- 学习记录 -->
   <div class="section">
-    <div class="section-title">🔮 明日预告</div>
-    <div style="font-size:14px;color:var(--sub);" id="tomorrowPreview"></div>
+    <div class="section-title">📊 今日学习记录</div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:13px;color:var(--sub);">学习时长（小时）</label>
+      <input type="number" id="evHours" min="0" max="24" step="0.5" placeholder="如 4.5" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:16px;margin-top:4px;">
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:13px;color:var(--sub);">今日总结</label>
+      <textarea id="evSummary" rows="3" placeholder="今天学了什么内容，进度如何..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:15px;resize:vertical;margin-top:4px;font-family:inherit;"></textarea>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:13px;color:var(--sub);">遇到的问题</label>
+      <textarea id="evProblem" rows="2" placeholder="有什么卡住的地方吗？" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:15px;resize:vertical;margin-top:4px;font-family:inherit;"></textarea>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:13px;color:var(--sub);">明日计划</label>
+      <textarea id="evTomorrow" rows="2" placeholder="明天打算做什么..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:15px;resize:vertical;margin-top:4px;font-family:inherit;"></textarea>
+    </div>
+    <button onclick="saveEvening()" style="width:100%;background:var(--blue);color:#fff;border:none;padding:12px;border-radius:20px;font-size:15px;font-weight:600;cursor:pointer;">💾 保存晚报</button>
+    <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--green);" id="saveStatus"></div>
+  </div>
+
+  <!-- 历史记录 -->
+  <div class="section">
+    <div class="section-title">📅 最近晚报记录</div>
+    <div id="evHistory" style="font-size:13px;color:var(--sub);"></div>
   </div>
 
   <!-- 周进度 -->
   <div class="section">
-    <div class="section-title">📈 本周进度</div>
+    <div class="section-title">📈 本周概览</div>
     <div id="weekProgress"></div>
   </div>
 
@@ -540,30 +561,130 @@ function renderEveningTasks() {
     const checked = loadTask(t.id);
     return `
       <li>
-        <input type="checkbox" disabled ${checked?'checked':''}>
-        <span style="${checked?'text-decoration:line-through;color:#bbb;':''}">${t.text}</span>
+        <input type="checkbox" id="ev_${t.id}" ${checked?'checked':''} onchange="saveTask('${t.id}')">
+        <span>${t.text}</span>
         ${checked?' <span style="font-size:12px;color:var(--green);">✅</span>':''}
       </li>
     `;
   }).join('');
+}
 
-  const allDone = CONFIG.morningTasks.every(t => loadTask(t.id));
-  const btn = document.getElementById('checkinBtn');
-  const status = document.getElementById('checkinStatus');
-  if (allDone && loadTask('__checkin__')) {
-    btn.classList.add('done');
-    btn.textContent = '🎉 今日已完成！';
-    status.textContent = '太棒了，明天继续加油！';
-  } else if (allDone) {
-    btn.classList.add('done');
-    btn.textContent = '📝 点击完成今日打卡';
-    status.textContent = '所有任务已完成，点此打卡';
-  } else {
-    btn.classList.remove('done');
-    btn.textContent = '📝 点击完成今日打卡';
-    const done = CONFIG.morningTasks.filter(t => loadTask(t.id)).length;
-    status.textContent = `已完成 ${done}/${CONFIG.morningTasks.length} 项任务`;
+function doCheckin() {
+  // removed — now handled by saveEvening()
+}
+
+function renderEvening() {
+  renderEveningTasks();
+  renderEveningHistory();
+  loadEveningDraft();
+  document.getElementById('weekProgress').innerHTML = `
+    <div style="font-size:13px;color:var(--sub);">
+      本周 ${CONFIG.weekLabel} · 第${CONFIG.currentWeek}周<br><br>
+      ${CONFIG.weekPlan.map(d => `<div style="margin:3px 0">周${d.dow}：${d.tasks}</div>`).join('')}
+    </div>
+  `;
+}
+
+// ============================================================
+//  🌙 晚报保存系统
+// ============================================================
+function saveEvening() {
+  const data = {
+    date: getDateKey(),
+    tasks: CONFIG.morningTasks.map(t => ({ text: t.text, done: loadTask(t.id) })),
+    hours: document.getElementById('evHours').value || '0',
+    summary: document.getElementById('evSummary').value,
+    problem: document.getElementById('evProblem').value,
+    tomorrow: document.getElementById('evTomorrow').value,
+    savedAt: new Date().toISOString()
+  };
+
+  // 存本地
+  const allEvenings = JSON.parse(localStorage.getItem('skill4_evenings') || '{}');
+  allEvenings[getDateKey()] = data;
+  localStorage.setItem('skill4_evenings', JSON.stringify(allEvenings));
+
+  // 清草稿
+  localStorage.removeItem('skill4_draft_' + getDateKey());
+
+  document.getElementById('saveStatus').textContent = '✅ 已保存！';
+  setTimeout(() => document.getElementById('saveStatus').textContent = '', 2000);
+
+  // 同时尝试推送到GitHub
+  pushToGitHub(data);
+
+  renderEveningHistory();
+}
+
+function pushToGitHub(data) {
+  const token = localStorage.getItem('skill4_gh_token');
+  if (!token) return; // 没配token就跳过
+
+  const path = 'data/' + getDateKey() + '.json';
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+
+  // 先尝试获取文件sha（如果已存在则更新）
+  fetch(`https://api.github.com/repos/00m-k/skill4/contents/${path}`, {
+    headers: { 'Authorization': 'token ' + token }
+  })
+  .then(r => r.ok ? r.json() : null)
+  .then(existing => {
+    const body = { message: '晚报: ' + getDateKey(), content: content };
+    if (existing && existing.sha) {
+      body.sha = existing.sha;
+    }
+    return fetch(`https://api.github.com/repos/00m-k/skill4/contents/${path}`, {
+      method: 'PUT',
+      headers: { 'Authorization': 'token ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+  })
+  .then(r => {
+    if (r && r.ok) {
+      document.getElementById('saveStatus').textContent = '✅ 已保存并同步到GitHub！';
+    }
+  })
+  .catch(() => {}); // 静默失败，本地已保存
+}
+
+function loadEveningDraft() {
+  const draft = localStorage.getItem('skill4_draft_' + getDateKey());
+  if (draft) {
+    try {
+      const d = JSON.parse(draft);
+      if (d.hours) document.getElementById('evHours').value = d.hours;
+      if (d.summary) document.getElementById('evSummary').value = d.summary;
+      if (d.problem) document.getElementById('evProblem').value = d.problem;
+      if (d.tomorrow) document.getElementById('evTomorrow').value = d.tomorrow;
+    } catch(e) {}
   }
+  // 自动保存草稿
+  ['evHours','evSummary','evProblem','evTomorrow'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+      const draft = {
+        hours: document.getElementById('evHours').value,
+        summary: document.getElementById('evSummary').value,
+        problem: document.getElementById('evProblem').value,
+        tomorrow: document.getElementById('evTomorrow').value
+      };
+      localStorage.setItem('skill4_draft_' + getDateKey(), JSON.stringify(draft));
+    });
+  });
+}
+
+function renderEveningHistory() {
+  const allEvenings = JSON.parse(localStorage.getItem('skill4_evenings') || '{}');
+  const dates = Object.keys(allEvenings).sort().reverse().slice(0, 7);
+  if (!dates.length) {
+    document.getElementById('evHistory').innerHTML = '还没有晚报记录，今天开始写吧 ✍️';
+    return;
+  }
+  document.getElementById('evHistory').innerHTML = dates.map(d => {
+    const e = allEvenings[d];
+    return `<div style="padding:6px 0;border-bottom:1px solid var(--border);">
+      <b>${d}</b> · ${e.hours}h · ${e.summary ? e.summary.slice(0,30)+(e.summary.length>30?'...':'') : '未写总结'}
+    </div>`;
+  }).join('');
 }
 
 // Task localStorage
