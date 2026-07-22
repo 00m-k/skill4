@@ -1124,22 +1124,34 @@ function renderWeekPlan() {
 
   const grid = document.getElementById('weekGrid');
   grid.innerHTML = weekDays.map(d =>
-    `<div class="day${d.isToday?' today':''}"><div class="dow">周${d.dow}</div><div class="dnum">${d.date}</div></div>`
+    `<div class="day${d.isToday?' today':''}" onclick="selectWeekDay('${d.dKey}')" style="cursor:pointer;" id="wd_${d.dKey}">
+      <div class="dow">周${d.dow}</div><div class="dnum">${d.date}</div></div>`
   ).join('');
 
-  // 用实际晚报数据填充
-  const allEvenings = JSON.parse(localStorage.getItem('skill4_evenings') || '{}');
-  const summaries = weekDays.map(d => {
-    const ev = allEvenings[d.dKey];
-    if (ev && ev.summary) {
-      return `<b>周${d.dow}(${d.date})：</b>${ev.summary.slice(0,50)}... · ${ev.hours}h`;
-    }
-    return `<b>周${d.dow}(${d.date})：</b>待记录`;
-  });
+  // 默认选中今天
+  selectWeekDay(getDateKey());
+}
 
-  document.getElementById('weekSummary').innerHTML =
-    `<div style="margin-bottom:8px;font-weight:600;">🎯 本周目标：${CONFIG.weekGoal}</div>` +
-    summaries.join('<br>');
+function selectWeekDay(dKey) {
+  // 高亮选中
+  document.querySelectorAll('.week-grid .day').forEach(el => el.style.outline = 'none');
+  const target = document.getElementById('wd_' + dKey);
+  if (target) target.style.outline = '2px solid var(--blue)';
+
+  const allEvenings = JSON.parse(localStorage.getItem('skill4_evenings') || '{}');
+  const ev = allEvenings[dKey];
+  if (ev && ev.summary) {
+    document.getElementById('weekSummary').innerHTML =
+      `<div style="margin-bottom:8px;font-weight:600;">📅 ${dKey}</div>
+       📝 ${ev.summary}<br>
+       ⏱ 学习${ev.hours}h<br>
+       ${ev.problem ? '⚠️ '+ev.problem : ''}`;
+  } else {
+    const isToday = dKey === getDateKey();
+    document.getElementById('weekSummary').innerHTML =
+      `<div style="margin-bottom:8px;font-weight:600;">📅 ${dKey}${isToday?'（今天）':''}</div>
+       ${isToday ? '🎯 本周目标：'+CONFIG.weekGoal : '暂无记录'}`;
+  }
 }
 
 // 渲染进度条
