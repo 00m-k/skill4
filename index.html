@@ -580,11 +580,12 @@ function renderTasks() {
   `).join('');
   const titleEl = document.getElementById('morningTitle');
   const btn = document.getElementById('genTodayBtn');
+  const dateLabel = getDateLabel();
   if (aiTasks) {
-    titleEl.textContent = '📋 今日任务（AI生成 ✨）';
+    titleEl.textContent = `📋 今日任务 · ${dateLabel} ✨`;
     btn.style.display = 'none';
   } else {
-    titleEl.textContent = '📋 今日任务（点击下方"查看今日早报"获取）';
+    titleEl.textContent = `📋 今日任务 · ${dateLabel}`;
     btn.style.display = 'block';
     btn.textContent = '📋 查看今日早报';
   }
@@ -657,18 +658,32 @@ ${recentReports || '今天是第一天学习'}
   document.getElementById('genTodayBtn').disabled = false;
 }
 
+function getTodayTasks() {
+  return getAITasks() || CONFIG.morningTasks;
+}
+
 function renderEveningTasks() {
   const list = document.getElementById('eveningTaskList');
-  list.innerHTML = CONFIG.morningTasks.map(t => {
-    const checked = loadTask(t.id);
+  const tasks = getTodayTasks();
+  const allDone = tasks.every((_, i) => loadTask('t'+i));
+  list.innerHTML = tasks.map((t, i) => {
+    const checked = loadTask('t'+i);
     return `
       <li>
-        <input type="checkbox" id="ev_${t.id}" ${checked?'checked':''} onchange="saveTask('${t.id}')">
+        <input type="checkbox" onchange="saveTask('t${i}');renderEveningTasks();" ${checked?'checked':''}>
         <span>${t.text}</span>
         ${checked?' <span style="font-size:12px;color:var(--green);">✅</span>':''}
       </li>
     `;
   }).join('');
+  document.getElementById('eveningTaskList').parentElement.querySelector('.section-title').textContent =
+    `✅ 今日任务（${getDateLabel()}）${allDone&&tasks.length?' 🎉 全部完成':''}`;
+}
+
+function getDateLabel() {
+  const d = new Date();
+  const w = ['日','一','二','三','四','五','六'];
+  return `${d.getMonth()+1}月${d.getDate()}日 周${w[d.getDay()]}`;
 }
 
 function doCheckin() {
