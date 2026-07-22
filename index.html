@@ -341,8 +341,10 @@
 
   <!-- 今日任务 -->
   <div class="section">
-    <div class="section-title">📋 今日任务</div>
+    <div class="section-title" id="morningTitle">📋 今日任务</div>
     <ul class="task-list" id="taskList"></ul>
+    <button onclick="generateTodayNow()" id="genTodayBtn" style="display:none;width:100%;background:var(--blue);color:#fff;border:none;padding:10px;border-radius:16px;font-size:13px;font-weight:600;cursor:pointer;margin-top:8px;">🔄 生成今日任务</button>
+    <div id="genTodayStatus" style="text-align:center;margin-top:6px;font-size:11px;color:var(--sub);"></div>
   </div>
 
   <!-- 教师编动态 -->
@@ -464,12 +466,11 @@ const CONFIG = {
     { name: '黑龙江省考', date: '2027-03-15', key: 'sk' },
   ],
 
-  // 早报 — 今日任务
+  // 早报 — 今日任务（仅作fallback）
   morningTasks: [
-    { text: '相生普心 · 第1节 30min', tag: 'must', id: 't1' },
+    { text: '相生普心 · 听课1节', tag: 'must', id: 't1' },
     { text: '不背单词 · 50词', tag: 'must', id: 't2' },
-    { text: '淘宝APP搜"客服招聘" · 了解流程', tag: 'must', id: 't3' },
-    { text: '刘晓艳语法 · 试听1节', tag: 'opt', id: 't4' },
+    { text: '刘晓艳语法 · 1节', tag: 'opt', id: 't3' },
   ],
 
   // 教师编动态
@@ -569,7 +570,6 @@ function autoTab() {
 // 渲染任务列表
 function renderTasks() {
   const list = document.getElementById('taskList');
-  // 优先使用AI生成的任务
   const aiTasks = getAITasks();
   const tasks = aiTasks || CONFIG.morningTasks;
   list.innerHTML = tasks.map((t, i) => `
@@ -578,8 +578,19 @@ function renderTasks() {
       <span>${t.text} ${t.tag==='must'?'<span class="task-tag tag-must">必做</span>':'<span class="task-tag tag-opt">选做</span>'}</span>
     </li>
   `).join('');
+  const titleEl = document.getElementById('morningTitle');
+  const btn = document.getElementById('genTodayBtn');
   if (aiTasks) {
-    document.getElementById('taskList').parentElement.querySelector('.section-title').textContent = '📋 今日任务（AI生成）';
+    titleEl.textContent = '📋 今日任务（AI生成 ✨）';
+    btn.style.display = 'none';
+  } else {
+    titleEl.textContent = '📋 今日任务（点击下方按钮刷新）';
+    btn.style.display = 'block';
+    // 如果有API key且今天还没生成过，自动触发
+    if (localStorage.getItem('skill4_ds_key') && !localStorage.getItem('skill4_autogen_' + getDateKey())) {
+      localStorage.setItem('skill4_autogen_' + getDateKey(), '1');
+      setTimeout(() => generateTodayNow(), 500);
+    }
   }
 }
 
@@ -591,6 +602,63 @@ function getAITasks() {
     } catch(e) {}
   }
   return null;
+}
+
+async function generateTodayNow() {
+  const apiKey = localStorage.getItem('skill4_ds_key');
+  if (!apiKey) {
+    document.getElementById('genTodayStatus').textContent = '⚠️ 请先设置DeepSeek API Key';
+    return;
+  }
+  document.getElementById('genTodayBtn').disabled = true;
+  document.getElementById('genTodayStatus').textContent = '⏳ 生成中...';
+
+  // 强制覆盖generateTomorrowTasks用的日期 — 传today代替tomorrow
+  const allEvenings = JSON.parse(localStorage.getItem('skill4_evenings') || '{}');
+  const dates = Object.keys(allEvenings).sort();
+  const recentReports = dates.slice(-5).map(d => {
+    const e = allEvenings[d];
+    return `【${d}】学${e.hours}h。${e.summary || '无'}。计划：${e.tomorrow || '无'}`;
+  }).join('\n');
+
+  const daysLeft = Math.ceil((new Date('2026-12-19')-new Date())/(1000*86400));
+  const prompt = `你是考研备考助手。根据用户进度，生成今天的任务。
+
+## 考试
+- 考研初试2026.12.19（应用心理专硕347）→ ${daysLeft}天后
+- 目标院校：华北理工大学/天津师范大学
+- 科目：普心(相生)、统计(端木)、测量(王永平)
+- 英语：刘晓艳语法→颉斌斌阅读→石雷鹏作文
+- 政治：徐涛强化班→腿姐技巧→肖四肖八
+- 阶段：一轮听课（7月下-9月中，起步期）
+
+## 近期记录
+${recentReports || '今天是第一天学习'}
+
+## 要求
+今天任务3-5条。JSON数组：[{text:15字内, tag:must/opt}]。循序渐进，从入门开始。只返回JSON。`;
+
+  try {
+    const resp = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+      body: JSON.stringify({ model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }], max_tokens: 400, temperature: 0.7 })
+    });
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.error?.message || 'API错误');
+    const reply = json.choices[0].message.content.trim();
+    const match = reply.match(/\[.*\]/s);
+    if (!match) throw new Error('格式异常');
+    const tasks = JSON.parse(match[0]);
+
+    localStorage.setItem('skill4_ai_tasks_' + getDateKey(), JSON.stringify(tasks));
+    localStorage.setItem('skill4_ai_tasks_date', getDateKey());
+    document.getElementById('genTodayStatus').textContent = '✅ 已生成！';
+    renderTasks();
+  } catch(e) {
+    document.getElementById('genTodayStatus').textContent = '⚠️ ' + e.message;
+  }
+  document.getElementById('genTodayBtn').disabled = false;
 }
 
 function renderEveningTasks() {
