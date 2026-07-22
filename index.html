@@ -1133,25 +1133,32 @@ function renderWeekPlan() {
 }
 
 function selectWeekDay(dKey) {
-  // 高亮选中
   document.querySelectorAll('.week-grid .day').forEach(el => el.style.outline = 'none');
   const target = document.getElementById('wd_' + dKey);
   if (target) target.style.outline = '2px solid var(--blue)';
 
+  // 优先显示当天的任务计划
+  const savedTasks = JSON.parse(localStorage.getItem('skill4_ai_tasks_' + dKey) || 'null');
+  const isToday = dKey === getDateKey();
   const allEvenings = JSON.parse(localStorage.getItem('skill4_evenings') || '{}');
   const ev = allEvenings[dKey];
-  if (ev && ev.summary) {
-    document.getElementById('weekSummary').innerHTML =
-      `<div style="margin-bottom:8px;font-weight:600;">📅 ${dKey}</div>
-       📝 ${ev.summary}<br>
-       ⏱ 学习${ev.hours}h<br>
-       ${ev.problem ? '⚠️ '+ev.problem : ''}`;
-  } else {
-    const isToday = dKey === getDateKey();
-    document.getElementById('weekSummary').innerHTML =
-      `<div style="margin-bottom:8px;font-weight:600;">📅 ${dKey}${isToday?'（今天）':''}</div>
-       ${isToday ? '🎯 本周目标：'+CONFIG.weekGoal : '暂无记录'}`;
+
+  let html = `<div style="margin-bottom:8px;font-weight:600;">📅 ${dKey}${isToday?'（今天）':''}</div>`;
+
+  if (savedTasks && savedTasks.length) {
+    html += '<div style="margin-bottom:6px;font-weight:600;">📋 任务：</div>';
+    savedTasks.forEach(t => {
+      html += `<div>${t.tag==='must'?'🔴':'🔵'} ${t.text}</div>`;
+    });
   }
+
+  if (ev && ev.hours !== '0') {
+    html += `<div style="margin-top:6px;">⏱ ${ev.hours}h · ${ev.summary ? ev.summary.slice(0,60) : '无总结'}</div>`;
+  } else if (!savedTasks) {
+    html += '<div style="color:var(--sub);">暂无记录</div>';
+  }
+
+  document.getElementById('weekSummary').innerHTML = html;
 }
 
 // 渲染进度条
