@@ -490,15 +490,8 @@ const CONFIG = {
     { date: '12.19-12.21', text: '🔥 考研初试' },
   ],
 
-  // 本周计划每日安排
-  weekPlan: [
-    { dow: '二', date: '7.22', tasks: '普心1 + 单词 + 云客服' },
-    { dow: '三', date: '7.23', tasks: '普心2 + 单词 + 语法1' },
-    { dow: '四', date: '7.24', tasks: '普心3 + 单词 + 语法1' },
-    { dow: '五', date: '7.25', tasks: '普心4 + 单词 + 语法1' },
-    { dow: '六', date: '7.26', tasks: '普心5 + 单词 + 试听端木' },
-    { dow: '日', date: '7.27', tasks: '休息/补漏 + 单词 + 试听王永平' },
-  ],
+  // 本周目标（大方向，具体每日任务由AI生成）
+  weekGoal: '第1周：启动学习节奏。普心前5节 + 语法启动 + 政治启动 + 各科老师试听定下来。',
 
   // 各科进度
   subjects: [
@@ -1113,15 +1106,40 @@ function renderReminders() {
 // 渲染周计划
 function renderWeekPlan() {
   const today = new Date();
-  const todayStr = `${today.getMonth()+1}.${today.getDate()}`;
+  const w = ['日','一','二','三','四','五','六'];
+  // 本周一到周日
+  const dayOfWeek = today.getDay();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((dayOfWeek+6)%7));
+
+  const weekDays = [];
+  for (let i=0; i<7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const dStr = `${d.getMonth()+1}.${d.getDate()}`;
+    const dKey = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+    const isToday = dKey === getDateKey();
+    weekDays.push({ dow: w[d.getDay()], date: dStr, isToday, dKey });
+  }
+
   const grid = document.getElementById('weekGrid');
-  grid.innerHTML = CONFIG.weekPlan.map(d => {
-    const isToday = d.date === todayStr;
-    return `<div class="day${isToday?' today':''}"><div class="dow">周${d.dow}</div><div class="dnum">${d.date}</div></div>`;
-  }).join('');
-  document.getElementById('weekSummary').innerHTML = CONFIG.weekPlan.map(d =>
-    `<div style="margin:4px 0"><b>周${d.dow}(${d.date})：</b>${d.tasks}</div>`
+  grid.innerHTML = weekDays.map(d =>
+    `<div class="day${d.isToday?' today':''}"><div class="dow">周${d.dow}</div><div class="dnum">${d.date}</div></div>`
   ).join('');
+
+  // 用实际晚报数据填充
+  const allEvenings = JSON.parse(localStorage.getItem('skill4_evenings') || '{}');
+  const summaries = weekDays.map(d => {
+    const ev = allEvenings[d.dKey];
+    if (ev && ev.summary) {
+      return `<b>周${d.dow}(${d.date})：</b>${ev.summary.slice(0,50)}... · ${ev.hours}h`;
+    }
+    return `<b>周${d.dow}(${d.date})：</b>待记录`;
+  });
+
+  document.getElementById('weekSummary').innerHTML =
+    `<div style="margin-bottom:8px;font-weight:600;">🎯 本周目标：${CONFIG.weekGoal}</div>` +
+    summaries.join('<br>');
 }
 
 // 渲染进度条
