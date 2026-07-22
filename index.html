@@ -584,13 +584,9 @@ function renderTasks() {
     titleEl.textContent = '📋 今日任务（AI生成 ✨）';
     btn.style.display = 'none';
   } else {
-    titleEl.textContent = '📋 今日任务（点击下方按钮刷新）';
+    titleEl.textContent = '📋 今日任务（点击下方"查看今日早报"获取）';
     btn.style.display = 'block';
-    // 如果有API key且今天还没生成过，自动触发
-    if (localStorage.getItem('skill4_ds_key') && !localStorage.getItem('skill4_autogen_' + getDateKey())) {
-      localStorage.setItem('skill4_autogen_' + getDateKey(), '1');
-      setTimeout(() => generateTodayNow(), 500);
-    }
+    btn.textContent = '📋 查看今日早报';
   }
 }
 
