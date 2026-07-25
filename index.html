@@ -491,8 +491,19 @@ const CONFIG = {
     { date: '12.19-12.21', text: '🔥 考研初试' },
   ],
 
-  // 本周目标（大方向，具体每日任务由AI生成）
-  weekGoal: '第1周：启动学习节奏。普心前5节 + 语法启动 + 政治启动 + 各科老师试听定下来。',
+  // 本周目标
+  weekGoal: '第1周（7.22-7.27）：普心前5节 + 单词6天 + 语法2节 + 统计/测量试听 + 掌门注册',
+
+  // 本周每日计划（预设，不依赖AI生成）
+  weekPlan: [
+    { dow: '一', date: '7.20', tasks: [] },
+    { dow: '二', date: '7.21', tasks: [] },
+    { dow: '三', date: '7.22', tasks: ['相生普心第1节','不背单词50词','刘晓艳语法试听','淘宝搜客服招聘'] },
+    { dow: '四', date: '7.23', tasks: ['相生普心第2-3节','不背单词50词','刘晓艳语法第1节','端木统计试听15min'] },
+    { dow: '五', date: '7.24', tasks: ['相生普心第4节','不背单词50词','刘晓艳语法第1节','王永平测量试听15min'] },
+    { dow: '六', date: '7.25', tasks: ['相生普心第5节','不背单词50词','刘晓艳语法第2节','掌门好老师注册'] },
+    { dow: '日', date: '7.26', tasks: ['单词复习+新词','语法追进度','统计/测量定老师','周复盘'] },
+  ],
 
   // 各科进度
   subjects: [
@@ -1173,23 +1184,45 @@ function selectWeekDay(dKey) {
   const target = document.getElementById('wd_' + dKey);
   if (target) target.style.outline = '2px solid var(--blue)';
 
-  // 优先显示当天的任务计划
-  const savedTasks = JSON.parse(localStorage.getItem('skill4_ai_tasks_' + dKey) || 'null');
   const isToday = dKey === getDateKey();
   const allEvenings = JSON.parse(localStorage.getItem('skill4_evenings') || '{}');
   const ev = allEvenings[dKey];
 
+  // 1. 从预设的周计划中找当天的任务
+  const weekPlan = CONFIG.weekPlan || [];
+  const dowMap = { '一':1, '二':2, '三':3, '四':4, '五':5, '六':6, '日':0 };
+  const planDate = new Date(dKey);
+  const planDow = planDate.getDay(); // 0=日 1=一 ...
+  const planEntry = weekPlan.find(e => {
+    const entryDow = dowMap[e.dow];
+    return entryDow === planDow;
+  });
+
   let html = `<div style="margin-bottom:8px;font-weight:600;">📅 ${dKey}${isToday?'（今天）':''}</div>`;
 
+  // 2. AI生成的任务
+  const savedTasks = JSON.parse(localStorage.getItem('skill4_ai_tasks_' + dKey) || 'null');
   if (savedTasks && savedTasks.length) {
-    html += '<div style="margin-bottom:4px;font-weight:600;">📋 当日计划：</div>';
+    html += '<div style="margin-bottom:4px;font-weight:600;">📋 当日任务：</div>';
     savedTasks.forEach(t => {
       html += `<div>${t.tag==='must'?'🔴':'🔵'} ${t.text}</div>`;
     });
-  } else if (isToday) {
-    html += '<div style="color:var(--sub);">今日计划尚未生成，点下方按钮获取</div>';
-  } else {
+  }
+  // 3. 预设周计划作为fallback
+  else if (planEntry && planEntry.tasks && planEntry.tasks.length) {
+    html += '<div style="margin-bottom:4px;font-weight:600;">📋 当日计划：</div>';
+    planEntry.tasks.forEach(t => {
+      html += `<div>🔵 ${t}</div>`;
+    });
+  }
+  // 4. 既无AI任务也无预设计划
+  else {
     html += '<div style="color:var(--sub);">暂无计划</div>';
+  }
+
+  // 5. 追加已完成的晚报摘要
+  if (ev && ev.summary) {
+    html += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid var(--border);font-size:12px;color:var(--sub);">📝 ${ev.summary.slice(0,60)}... · ${ev.hours}h</div>`;
   }
 
   document.getElementById('weekSummary').innerHTML = html;
