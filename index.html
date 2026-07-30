@@ -468,12 +468,13 @@ const CONFIG = {
     { name: '黑龙江省考', date: '2027-03-15', key: 'sk' },
   ],
 
-  // 早报 — 今日任务（仅作fallback，优先用AI生成）
+  // 早报 — 今日任务（fallback，仅当本周计划对应天无数据时使用）
   morningTasks: [
-    { text: '相生普心 · 听课2节', tag: 'must', id: 't1' },
+    { text: '专业课 · 按本周计划今日任务', tag: 'must', id: 't1' },
     { text: '不背单词 · 50词', tag: 'must', id: 't2' },
-    { text: '刘晓艳语法 · 1节', tag: 'must', id: 't3' },
-    { text: '复习笔记+整理错题', tag: 'opt', id: 't4' },
+    { text: '英语语法/阅读 · 按本周计划', tag: 'must', id: 't3' },
+    { text: '政治/考公 · 按本周计划', tag: 'must', id: 't4' },
+    { text: '点"查看今日早报"获取详细任务', tag: 'opt', id: 't5' },
   ],
 
   // 教师编动态
