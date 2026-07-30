@@ -733,7 +733,7 @@ ${ctx.recentReports || '（第一天）'}
 }
 
 function getTodayTasks() {
-  return getAITasks() || CONFIG.morningTasks;
+  return getAITasks() || getTodayFromWeekPlan() || CONFIG.morningTasks;
 }
 
 function renderEveningTasks() {
