@@ -581,10 +581,22 @@ function autoTab() {
 }
 
 // 渲染任务列表
+function getTodayFromWeekPlan() {
+  const now = new Date();
+  const dow = now.getDay();
+  const dowMap = { 0:'日', 1:'一', 2:'二', 3:'三', 4:'四', 5:'五', 6:'六' };
+  const entry = (CONFIG.weekPlan || []).find(e => e.dow === dowMap[dow]);
+  if (entry && entry.tasks && entry.tasks.length) {
+    return entry.tasks.map((text, i) => ({ text, tag: 'must', id: 'wp'+i }));
+  }
+  return null;
+}
+
 function renderTasks() {
   const list = document.getElementById('taskList');
   const aiTasks = getAITasks();
-  const tasks = aiTasks || CONFIG.morningTasks;
+  const wpTasks = getTodayFromWeekPlan();
+  const tasks = aiTasks || wpTasks || CONFIG.morningTasks;
   list.innerHTML = tasks.map((t, i) => `
     <li>
       <input type="checkbox" id="t${i}" onchange="saveTask('t${i}')" ${loadTask('t${i}')?'checked':''}>
@@ -597,6 +609,10 @@ function renderTasks() {
   if (aiTasks) {
     titleEl.textContent = `📋 今日任务 · ${dateLabel} ✨`;
     btn.style.display = 'none';
+  } else if (wpTasks) {
+    titleEl.textContent = `📋 今日任务 · ${dateLabel}（本周计划）`;
+    btn.style.display = 'block';
+    btn.textContent = '🔄 AI重新生成';
   } else {
     titleEl.textContent = `📋 今日任务 · ${dateLabel}`;
     btn.style.display = 'block';
