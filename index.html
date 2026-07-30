@@ -361,7 +361,7 @@
 
   <!-- 本周计划 -->
   <div class="section">
-    <div class="section-title">📐 本周计划（第1周）</div>
+    <div class="section-title" id="weekPlanTitle">📐 本周计划</div>
     <div class="week-grid" id="weekGrid"></div>
     <div style="margin-top:12px;font-size:13px;color:var(--sub);" id="weekSummary"></div>
   </div>
@@ -498,13 +498,13 @@ const CONFIG = {
 
   // 本周每日计划（预设）
   weekPlan: [
-    { dow: '一', date: '7.28', tasks: ['相生普心第4节','不背单词50词','刘晓艳语法第1节'] },
-    { dow: '二', date: '7.29', tasks: ['相生普心第5节','不背单词50词','刘晓艳语法第2节','统计第1章'] },
-    { dow: '三', date: '7.30', tasks: ['相生普心第6节','不背单词50词','刘晓艳语法第3节','测量导论复习'] },
-    { dow: '四', date: '7.31', tasks: ['相生普心第7节','不背单词50词','统计第2章','阿里客服认证'] },
-    { dow: '五', date: '8.1', tasks: ['相生普心第8节','不背单词50词','刘晓艳语法第4节','徐涛政治第1节'] },
-    { dow: '六', date: '8.2', tasks: ['追进度/复习','不背单词50词','徐涛政治第2节'] },
-    { dow: '日', date: '8.3', tasks: ['休息或轻复习','不背单词复习','周复盘+下周计划'] },
+    { dow: '一', date: '7.28', tasks: ['相生普心第4-5节(1h)','不背单词50词(15min)','刘晓艳语法第1节(20min)','统计第1章复习(30min)'] },
+    { dow: '二', date: '7.29', tasks: ['相生普心第6节(40min)','不背单词50词(15min)','刘晓艳语法第2节(20min)','测量第1章(30min)','阿里客服认证(15min)'] },
+    { dow: '三', date: '7.30', tasks: ['相生普心第7节(40min)','不背单词50词+复习(20min)','刘晓艳语法第3节(20min)','统计第2章(30min)'] },
+    { dow: '四', date: '7.31', tasks: ['相生普心第8节(40min)','不背单词50词(15min)','刘晓艳语法复习前3节(30min)','测量第2章(30min)','徐涛政治第1节(40min)'] },
+    { dow: '五', date: '8.1', tasks: ['普心第4-8章框架复习(45min)','不背单词50词(15min)','刘晓艳语法第4节(20min)','统计第2章习题(30min)','徐涛政治第2节(40min)'] },
+    { dow: '六', date: '8.2', tasks: ['追补本周未完成项','不背单词50词(15min)','语法前4节总复习(30min)','学霸在线能力测试(30min)'] },
+    { dow: '日', date: '8.3', tasks: ['轻复习/休息','不背单词复习(10min)','周复盘+定下周计划'] },
   ],
 
   // 各科进度
@@ -1154,6 +1154,9 @@ function renderReminders() {
 
 // 渲染周计划
 function renderWeekPlan() {
+  document.getElementById('weekPlanTitle').textContent =
+    `📐 本周计划（第${CONFIG.currentWeek}周 · ${CONFIG.weekLabel}）`;
+
   const today = new Date();
   const w = ['日','一','二','三','四','五','六'];
   // 本周一到周日
