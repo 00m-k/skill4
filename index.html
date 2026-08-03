@@ -10,7 +10,6 @@
 <meta name="theme-color" content="#3b6ff5">
 <link rel="manifest" href="manifest.json">
 <title>个人日报</title>
-  <script src="plan.js"></script>
 <style>
   :root {
     --bg: #faf9f6;
@@ -484,27 +483,52 @@
   const _currentWeek = Math.max(1, Math.floor((_MONDAY - _WEEK1_START) / (7*86400000)) + 1);
   const _weekLabel = _fmtMD(_MONDAY) + ' - ' + _fmtMD(new Date(_MONDAY.getTime()+6*86400000));
   const _DOW_CN = ['日','一','二','三','四','五','六'];
-  // 使用 MASTER_PLAN 按周取计划
-  const _thisWeek = (typeof MASTER_PLAN !== 'undefined') 
-    ? MASTER_PLAN.find(p => p.w === _currentWeek) || MASTER_PLAN[2]
-    : null;
-  
-  function _buildDayTasks(dow) {
-    if (!_thisWeek) return ['📖普心(50min)','📖统计(40min)','📖单词(15min)','💼工作(1h)'];
-    const tasks = [];
-    if (_thisWeek.px !== '—') tasks.push(`📖普心：${_thisWeek.px}(1h)`);
-    if (_thisWeek.tj !== '—') tasks.push(`📖统计：${_thisWeek.tj}(1h)`);
-    if (_thisWeek.cl !== '—') tasks.push(`📖测量：${_thisWeek.cl}(40min)`);
-    tasks.push(`📖单词：背新+复习(15min)`);
-    if (_thisWeek.yy !== '—') tasks.push(`📖英语：${_thisWeek.yy}(1h)`);
-    if (_thisWeek.zz !== '—') tasks.push(`📖政治：${_thisWeek.zz}(50min)`);
-    if (_thisWeek.kg !== '—') tasks.push(`📖考公：${_thisWeek.kg}(1h)`);
-    tasks.push('💼工作推进(1h)');
-    return tasks;
+  // ═══════════════════════════════════════════════════════════
+  //  课程进度 — 修改这里即可，每周自动推进（每科每周进度 +1）
+  // ═══════════════════════════════════════════════════════════
+  const _curriculum = {
+    puxin:  { name: '普心', weekAdv: 1, now: 5,  total: 23, unit: '章' },
+    tongji: { name: '统计', weekAdv: 0.5, now: 2, total: 32, unit: '章' },
+    yufa:   { name: '语法', weekAdv: 2, now: 3, total: 10, unit: '节' },
+    xutao:  { name: '徐涛马原', weekAdv: 2, now: 2, total: 20, unit: '节' },
+  };
+  // auto-advance: 每周按 weekAdv 推进
+  const _advanceWeeks = _currentWeek - 1; // 从第1周开始算
+  const _px = _curriculum.puxin.now + Math.floor(_advanceWeeks * _curriculum.puxin.weekAdv);
+  const _tj = _curriculum.tongji.now + Math.floor(_advanceWeeks * _curriculum.tongji.weekAdv);
+  const _yf = _curriculum.yufa.now + Math.floor(_advanceWeeks * _curriculum.yufa.weekAdv);
+  const _xt = _curriculum.xutao.now + Math.floor(_advanceWeeks * _curriculum.xutao.weekAdv);
+
+  function _buildDayTasks(weekdayOffset) {
+    const adv = weekdayOffset || 0; // 0=当天, 1=周中后几天进度微调
+    return [
+      `📖普心第${_px+adv}章(50min)`,
+      `🖊普心第${_px+adv}章习题(25min)`,
+      `📖单词50词(15min)`,
+      `📖语法第${_yf+adv}节(45min)`,
+      `📖统计第${_tj}章(40min)`,
+      `📖徐涛马原第${_xt}节(50min)`,
+      '💼工作推进(1h)'
+    ];
   }
 
-  const _buildDayTasks(1) = _buildDayTasks(0);
-
+  const _weekdayTasks = _buildDayTasks(0);
+  const _satTasks = [
+    `📖普心第${_px+1}章(1h)`,
+    `🖊普心第${_px}-${_px+1}章习题回顾(25min)`,
+    '📖单词复习(15min)',
+    `📖语法第${_yf+1}节(45min)`,
+    `🖊统计第${_tj}章习题(30min)`,
+    `📖徐涛马原第${_xt}节回顾(50min)`,
+    '💼工作推进(1h)'
+  ];
+  const _sunTasks = [
+    '休息/轻复习','📖单词复习(10min)',
+    '🖊补本周未做题(30min)',
+    '📋周复盘+整理笔记(45min)',
+    '🎯申论范文1篇(20min)',
+    '📖浏览下周内容'
+  ];
 
   // 上周遗留
   const _backlogTasks = [
@@ -526,18 +550,9 @@
       const dayStr = _fmtISOMD(day);
       const dayDateOnly = new Date(day.getFullYear(), day.getMonth(), day.getDate());
       const isPast = dayDateOnly < todayDateOnly;
-      const isSun = dayDow === 0;
-      const isSat = dayDow === 6;
-      let tasks;
-      if (isPast) {
-        tasks = ['—— 已过，不补 ——'];
-      } else if (isSun) {
-        tasks = ['休息/轻复习','📖单词复习(10min)','🖊补本周未做题(30min)','📋周复盘+笔记(45min)','🎯申论范文1篇(20min)'];
-      } else if (isSat) {
-        tasks = ['📖普心回顾(1h)','📖统计回顾(1h)','📖单词复习(15min)','📖英语语法复习(30min)','📖本周政治回顾(40min)','💼工作(2h)'];
-      } else {
-        tasks = _buildDayTasks(dayDow);
-      }
+      const tasks = isPast ? ['—— 已过，不补 ——'] :
+        dayDow === 0 ? _sunTasks :
+        dayDow === 6 ? _satTasks : _weekdayTasks;
       plan.push({ dow: _DOW_CN[dayDow], date: dayStr, tasks });
     }
     return plan;
