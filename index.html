@@ -586,7 +586,7 @@ const CONFIG = {
   morningTasks: [
     { text: '普心第6章 + 统计第2章', tag: 'must', id: 't1' },
     { text: '不背单词 · 50词', tag: 'must', id: 't2' },
-    { text: '语法第4节 + 单词', tag: 'must', id: 't3' },
+    { text: '语法第5节 + 统计第2章', tag: 'must', id: 't3' },
     { text: '徐涛第3节 + 考公言语', tag: 'must', id: 't4' },
     { text: '点"查看今日早报"获取详细任务', tag: 'opt', id: 't5' },
   ],
@@ -834,7 +834,7 @@ ${ctx.recentReports || '（第一天）'}
     const tasks = JSON.parse(match[0]);
 
     localStorage.setItem('skill4_ai_tasks_v3_' + getDateKey(), JSON.stringify(tasks));
-    localStorage.setItem('skill4_ai_tasks_date_v3', getDateKey());
+    // localStorage.setItem('skill4_ai_tasks_date_v3', getDateKey()); // 禁用AI缓存
     document.getElementById('genTodayStatus').textContent = '✅ 已生成！';
     renderTasks();
     renderWeekPlan();
@@ -1445,6 +1445,10 @@ function init() {
   renderTeachers();
   renderEvening();
   loadBacklog();
+  // 清空旧AI任务缓存，强制使用最新CONFIG模板
+  localStorage.removeItem('skill4_ai_tasks_date');
+  localStorage.removeItem('skill4_ai_tasks_date_v2');
+  localStorage.removeItem('skill4_ai_tasks_date_v3');
   setInterval(updateCountdowns, 60000);
 }
 
