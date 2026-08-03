@@ -430,15 +430,15 @@
     <div id="weekProgress"></div>
 
   <!-- 📌 遗忘/未完成任务 -->
-    <div class="section-title" style="margin-top:24px;">📌 之前未完成（补做）</div>
-    <div id="backlogList" style="font-size:13px;color:var(--sub);line-height:2.2;">
-      <div>☐ 🔴 相生普心第1-4章课后习题（一直没做）</div>
-      <div>☐ 🔴 端木统计第1-2章课后习题</div>
-      <div>☐ 🔴 刘晓艳语法第1-3节配套练习</div>
-      <div>☐ 🟡 学霸在线能力测试（拖了几天）</div>
-      <div>☐ 🟡 确认普心/统计习题做哪些（312 vs 347）</div>
-      <div>☐ 🟡 考公：粉笔APP下载+浏览题型</div>
-    </div>
+    <div class="section-title" style="margin-top:24px;">📌 之前未完成（可勾选）</div>
+    <ul class="task-list" id="backlogList">
+      <li><input type="checkbox" id="bl_1" onchange="saveBacklog()"><span>🔴 相生普心第1-4章课后习题（一直没做）</span></li>
+      <li><input type="checkbox" id="bl_2" onchange="saveBacklog()"><span>🔴 端木统计第1-2章课后习题</span></li>
+      <li><input type="checkbox" id="bl_3" onchange="saveBacklog()"><span>🔴 刘晓艳语法第1-3节配套练习</span></li>
+      <li><input type="checkbox" id="bl_4" onchange="saveBacklog()"><span>🟡 学霸在线能力测试（拖了几天）</span></li>
+      <li><input type="checkbox" id="bl_5" onchange="saveBacklog()"><span>🟡 确认普心/统计习题做哪些（312 vs 347）</span></li>
+      <li><input type="checkbox" id="bl_6" onchange="saveBacklog()"><span>🟡 考公：粉笔APP下载+浏览题型</span></li>
+    </ul>
   </div>
 
 </div>
@@ -1213,6 +1213,23 @@ function saveToken() {
   setTimeout(() => document.getElementById('tokenStatus').textContent = '', 2000);
 }
 
+// Backlog localStorage — 保存勾选状态
+function saveBacklog() {
+  const state = {};
+  for (let i = 1; i <= 6; i++) {
+    const el = document.getElementById('bl_' + i);
+    if (el) state['bl_' + i] = el.checked;
+  }
+  localStorage.setItem('skill4_backlog', JSON.stringify(state));
+}
+function loadBacklog() {
+  const state = JSON.parse(localStorage.getItem('skill4_backlog') || '{}');
+  for (let i = 1; i <= 6; i++) {
+    const el = document.getElementById('bl_' + i);
+    if (el && state['bl_' + i]) el.checked = true;
+  }
+}
+
 // Task localStorage
 function saveTask(id) {
   const el = document.getElementById(id);
@@ -1393,6 +1410,7 @@ function init() {
   renderSubjectProgress();
   renderTeachers();
   renderEvening();
+  loadBacklog();
   setInterval(updateCountdowns, 60000);
 }
 
