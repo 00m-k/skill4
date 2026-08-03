@@ -1431,17 +1431,12 @@ function _safeInit() {
 }
 
 // 检查是否已登录过
-// Always show content (debug)
-  document.getElementById('passwordGate').style.display = 'none';
-  document.getElementById('mainContent').style.display = 'block';
-  _safeInit();
-}
-if (false && localStorage.getItem('skill4_auth') === '1') {
+if (localStorage.getItem('skill4_auth') === '1') {
   document.getElementById('passwordGate').style.display = 'none';
   document.getElementById('mainContent').style.display = 'block';
   _safeInit();
 }
 </script>
-<script src="plan.js?v=2"></script>
+<script src="plan.js"></script>
 </body>
 </html>
