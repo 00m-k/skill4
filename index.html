@@ -675,7 +675,7 @@ function renderTasks() {
 }
 
 function getAITasks() {
-  const aiDate = localStorage.getItem('skill4_ai_tasks_v2_date_v2');
+  const aiDate = localStorage.getItem('skill4_ai_tasks_date_v2');
   if (aiDate === getDateKey()) {
     try {
       return JSON.parse(localStorage.getItem('skill4_ai_tasks_v2_' + getDateKey()));
@@ -776,7 +776,7 @@ ${ctx.recentReports || '（第一天）'}
     const tasks = JSON.parse(match[0]);
 
     localStorage.setItem('skill4_ai_tasks_v2_' + getDateKey(), JSON.stringify(tasks));
-    localStorage.setItem('skill4_ai_tasks_v2_date_v2', getDateKey());
+    localStorage.setItem('skill4_ai_tasks_date_v2', getDateKey());
     document.getElementById('genTodayStatus').textContent = '✅ 已生成！';
     renderTasks();
     renderWeekPlan();
@@ -1057,7 +1057,7 @@ async function generateTomorrowTasks(apiKey) {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tKey = `${tomorrow.getFullYear()}-${tomorrow.getMonth()+1}-${tomorrow.getDate()}`;
     localStorage.setItem('skill4_ai_tasks_v2_' + tKey, JSON.stringify(tasks));
-    localStorage.setItem('skill4_ai_tasks_v2_date_v2', tKey);
+    localStorage.setItem('skill4_ai_tasks_date_v2', tKey);
     return true;
   } catch(e) {
     document.getElementById('genStatus').textContent = '⚠️ 生成失败：' + e.message;
@@ -1151,7 +1151,7 @@ ${recentReports || '（暂无历史记录）'}
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tKey = `${tomorrow.getFullYear()}-${tomorrow.getMonth()+1}-${tomorrow.getDate()}`;
     localStorage.setItem('skill4_ai_tasks_v2_' + tKey, JSON.stringify(tasks));
-    localStorage.setItem('skill4_ai_tasks_v2_date_v2', tKey);
+    localStorage.setItem('skill4_ai_tasks_date_v2', tKey);
 
     // 同时更新今日的明日计划
     document.getElementById('evTomorrow').value = tasks.map(t=>t.text).join('；');
