@@ -728,10 +728,10 @@ function renderTasks() {
 }
 
 function getAITasks() {
-  const aiDate = localStorage.getItem('skill4_ai_tasks_date_v2');
+  const aiDate = localStorage.getItem('skill4_ai_tasks_date_v3');
   if (aiDate === getDateKey()) {
     try {
-      return JSON.parse(localStorage.getItem('skill4_ai_tasks_v2_' + getDateKey()));
+      return JSON.parse(localStorage.getItem('skill4_ai_tasks_v3_' + getDateKey()));
     } catch(e) {}
   }
   return null;
@@ -833,8 +833,8 @@ ${ctx.recentReports || '（第一天）'}
     if (!match) throw new Error('格式异常');
     const tasks = JSON.parse(match[0]);
 
-    localStorage.setItem('skill4_ai_tasks_v2_' + getDateKey(), JSON.stringify(tasks));
-    localStorage.setItem('skill4_ai_tasks_date_v2', getDateKey());
+    localStorage.setItem('skill4_ai_tasks_v3_' + getDateKey(), JSON.stringify(tasks));
+    localStorage.setItem('skill4_ai_tasks_date_v3', getDateKey());
     document.getElementById('genTodayStatus').textContent = '✅ 已生成！';
     renderTasks();
     renderWeekPlan();
@@ -1115,8 +1115,8 @@ ${ctx.currentProgress.join('\n')}
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tKey = `${tomorrow.getFullYear()}-${tomorrow.getMonth()+1}-${tomorrow.getDate()}`;
-    localStorage.setItem('skill4_ai_tasks_v2_' + tKey, JSON.stringify(tasks));
-    localStorage.setItem('skill4_ai_tasks_date_v2', tKey);
+    localStorage.setItem('skill4_ai_tasks_v3_' + tKey, JSON.stringify(tasks));
+    localStorage.setItem('skill4_ai_tasks_date_v3', tKey);
     return true;
   } catch(e) {
     document.getElementById('genStatus').textContent = '⚠️ 生成失败：' + e.message;
@@ -1209,8 +1209,8 @@ ${recentReports || '（暂无历史记录）'}
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tKey = `${tomorrow.getFullYear()}-${tomorrow.getMonth()+1}-${tomorrow.getDate()}`;
-    localStorage.setItem('skill4_ai_tasks_v2_' + tKey, JSON.stringify(tasks));
-    localStorage.setItem('skill4_ai_tasks_date_v2', tKey);
+    localStorage.setItem('skill4_ai_tasks_v3_' + tKey, JSON.stringify(tasks));
+    localStorage.setItem('skill4_ai_tasks_date_v3', tKey);
 
     // 同时更新今日的明日计划
     document.getElementById('evTomorrow').value = tasks.map(t=>t.text).join('；');
@@ -1358,7 +1358,7 @@ function selectWeekDay(dKey) {
   let html = `<div style="margin-bottom:8px;font-weight:600;">📅 ${dKey}${isToday?'（今天）':''}</div>`;
 
   // 2. AI生成的任务
-  const savedTasks = JSON.parse(localStorage.getItem('skill4_ai_tasks_v2_' + dKey) || 'null');
+  const savedTasks = JSON.parse(localStorage.getItem('skill4_ai_tasks_v3_' + dKey) || 'null');
   if (savedTasks && savedTasks.length) {
     html += '<div style="margin-bottom:4px;font-weight:600;">📋 当日任务：</div>';
     savedTasks.forEach(t => {
