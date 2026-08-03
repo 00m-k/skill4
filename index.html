@@ -499,34 +499,48 @@
     // 普心第5章真实1.5x=72min | 每天50词 | 考研5h+考公0.5h+工作4h
     // 数据来源：全部课程与计划汇总.md（每节精确时长）
   // 普心5=1h48min 1x→72min 1.5x | 语法5=9min 1x→6min 1.5x
-  const _weekdayTasks = [
+    // ── 不同日期的任务模板 ──
+  // 周一三五：专业课重点
+  const _monWedFriTasks = [
     '📖相生普心第5章(1h48min 1x→72min 1.5x)',
     '🖊普心第5章对应习题(40min)',
-    '📌不背单词 新学50词(15min)',
-    '📖刘晓艳语法第5节(9min 1x→6min 1.5x)',
     '📖端木统计第2章 1.5x',
+    '📌不背单词 新学50词(15min)',
     '📖徐涛政治第2节 1.5x',
     '🎯考公：粉笔言语15题(30min)',
     '💼学霸能力测试/芒果审核'
   ];
-    const _satTasks = [
-    '📖相生普心第5章回顾+第6章预习(1.5h)',
+  // 周二四：英语政治重点
+  const _tueThuTasks = [
+    '📖刘晓艳语法长难句第5节(9min 1x→6min 1.5x)',
+    '📖徐涛政治第2节 1.5x',
+    '📖相生普心第5章回顾(30min)',
+    '📌不背单词 新学50词(15min)',
+    '🖊端木统计第2章回顾(30min)',
+    '🎯考公：粉笔言语15题(30min)',
+    '💼芒果审核/阿里客服关注'
+  ];
+  // 周六：复习+补做
+  const _satTasks = [
+    '📖相生普心第5章回顾(1h)',
     '🖊补前4章未做习题(1h)',
-    '📌单词复习本周背过的250词(15min)',
+    '📌单词复习本周250词(15min)',
     '📖刘晓艳语法第3-5节复习(40min)',
     '📖端木统计第2章回顾(30min)',
     '📖徐涛第1-2节回顾(40min)',
     '🎯考公言语回顾(30min)',
     '💼工作推进(2h)'
   ];
+  // 周日：休息+轻复盘
   const _sunTasks = [
     '休息',
-    '📌单词总复习(10min)',
-    '🖊补本周所有未做题(30min)',
-    '📖相生普心第5-6章笔记整理(45min)',
+    '📌单词复习本周词汇(10min)',
+    '🖊补本周未做题(30min)',
+    '📋周复盘+笔记整理(45min)',
     '🎯申论范文1篇(20min)',
-    '📋周复盘+下周计划调整'
+    '📋下周计划预览'
   ];
+
 
   function _buildWeekPlan() {
     const plan = [];
@@ -539,9 +553,18 @@
       const dayStr = _fmtISOMD(day);
       const dayDateOnly = new Date(day.getFullYear(), day.getMonth(), day.getDate());
       const isPast = dayDateOnly < todayDateOnly;
-      const tasks = isPast ? ['—— 已过，不补 ——'] :
-        dayDow === 0 ? _sunTasks :
-        dayDow === 6 ? _satTasks : _weekdayTasks;
+      let tasks;
+      if (isPast) {
+        tasks = ['—— 已过，不补 ——'];
+      } else if (dayDow === 0) {
+        tasks = _sunTasks;
+      } else if (dayDow === 6) {
+        tasks = _satTasks;
+      } else if (dayDow === 1 || dayDow === 3 || dayDow === 5) {
+        tasks = _monWedFriTasks;  // 周一三五：专业课重点
+      } else {
+        tasks = _tueThuTasks;     // 周二四：英语政治重点
+      }
       plan.push({ dow: _DOW_CN[dayDow], date: dayStr, tasks });
     }
     return plan;
