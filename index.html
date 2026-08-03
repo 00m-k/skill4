@@ -424,6 +424,16 @@
   <div class="section">
     <div class="section-title">📈 本周概览</div>
     <div id="weekProgress"></div>
+
+  <!-- 上周遗留 -->
+    <div class="section-title" style="margin-top:24px;">📌 上周遗留（可补）</div>
+    <div id="backlogList" style="font-size:13px;color:var(--sub);line-height:2;">
+      <div>☐ 🔴 普心第1-4章习题补做</div>
+      <div>☐ 🔴 统计第1-2章课后题</div>
+      <div>☐ 🔴 语法第1-3节配套练习</div>
+      <div>☐ 🟡 学霸在线能力测试</div>
+      <div>☐ 🟡 确定各科做题范围</div>
+    </div>
   </div>
 
 </div>
@@ -479,9 +489,10 @@
   const _currentWeek = Math.max(1, Math.floor((_MONDAY - _WEEK1_START) / (7*86400000)) + 1);
   const _weekLabel = _fmtMD(_MONDAY) + ' - ' + _fmtMD(new Date(_MONDAY.getTime()+6*86400000));
   const _DOW_CN = ['日','一','二','三','四','五','六'];
-  const _weekdayTasks = ['📖普心课程1节(50min)','🖊普心习题(25min)','📖单词50词(15min)','📖语法1节(45min)','📖统计复习(30min)','📖徐涛马原1节(50min)','💼工作推进(1h)'];
+  // 当前进度：普心第5章、统计第2章、语法第4节、徐涛第2节（7/16更新）
+  const _weekdayTasks = ['📖普心第5章(50min)','🖊普心第5章习题(25min)','📌不背单词新100+复习200(15min)','📖语法第4节(45min)','📖统计第2章(40min)','📖徐涛马原第2节(50min)','💼工作推进(1h)'];
   const _satTasks = ['📖普心课程1节(1h)','🖊普心习题(25min)','📖单词50词(15min)','📖语法复习(30min)','📖统计复习(40min)','📖徐涛马原1节(50min)','💼工作推进(1h)'];
-  const _sunTasks = ['休息/轻复习','📖单词复习(10min)','🖊补本周未做题(30min)','📖普心笔记整理(45min)','🎯申论范文1篇(20min)','📋周复盘+下周计划'];
+  const _sunTasks = ['休息','📌单词复习(10min)','🖊补本周未做题(30min)','📖普心5-6章笔记整理(45min)','🎯申论范文1篇(20min)','📋周复盘+调整下周计划'];
 
   function _buildWeekPlan() {
     const plan = [];
@@ -516,10 +527,10 @@ const CONFIG = {
 
   // 早报 — 今日任务（fallback，仅当本周计划对应天无数据时使用）
   morningTasks: [
-    { text: '专业课 · 按本周计划今日任务', tag: 'must', id: 't1' },
+    { text: '普心第5章 + 统计第2章', tag: 'must', id: 't1' },
     { text: '不背单词 · 50词', tag: 'must', id: 't2' },
-    { text: '英语语法/阅读 · 按本周计划', tag: 'must', id: 't3' },
-    { text: '政治/考公 · 按本周计划', tag: 'must', id: 't4' },
+    { text: '语法第4节 + 单词', tag: 'must', id: 't3' },
+    { text: '徐涛第2节 + 考公入门', tag: 'must', id: 't4' },
     { text: '点"查看今日早报"获取详细任务', tag: 'opt', id: 't5' },
   ],
 
