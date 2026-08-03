@@ -456,11 +456,57 @@
 // ============================================================
 //  📝 数据配置区 — 每日更新这里即可
 // ============================================================
+  function _getBeijingNow() {
+    const utc = new Date(new Date().getTime() + new Date().getTimezoneOffset() * 60000);
+    return new Date(utc.getTime() + 8 * 3600000);
+  }
+  function _getMonday(now) {
+    const d = new Date(now);
+    const day = d.getDay() || 7;
+    d.setDate(d.getDate() - day + 1);
+    d.setHours(0,0,0,0);
+    return d;
+  }
+  function _fmtMD(d) { return (d.getMonth()+1)+'.'+d.getDate(); }
+  function _fmtISOMD(d) {
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    return m+'.'+dd;
+  }
+  const _NOW = _getBeijingNow();
+  const _MONDAY = _getMonday(_NOW);
+  const _WEEK1_START = new Date(2026,5,23);
+  const _currentWeek = Math.max(1, Math.floor((_MONDAY - _WEEK1_START) / (7*86400000)) + 1);
+  const _weekLabel = _fmtMD(_MONDAY) + ' - ' + _fmtMD(new Date(_MONDAY.getTime()+6*86400000));
+  const _DOW_CN = ['日','一','二','三','四','五','六'];
+  const _weekdayTasks = ['📖普心课程1节(50min)','🖊普心习题(25min)','📖单词50词(15min)','📖语法1节(45min)','📖统计复习(30min)','📖徐涛马原1节(50min)','💼工作推进(1h)'];
+  const _satTasks = ['📖普心课程1节(1h)','🖊普心习题(25min)','📖单词50词(15min)','📖语法复习(30min)','📖统计复习(40min)','📖徐涛马原1节(50min)','💼工作推进(1h)'];
+  const _sunTasks = ['休息/轻复习','📖单词复习(10min)','🖊补本周未做题(30min)','📖普心笔记整理(45min)','🎯申论范文1篇(20min)','📋周复盘+下周计划'];
+
+  function _buildWeekPlan() {
+    const plan = [];
+    const today = _getBeijingNow();
+    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(_MONDAY);
+      day.setDate(_MONDAY.getDate() + i);
+      const dayDow = day.getDay();
+      const dayStr = _fmtISOMD(day);
+      const dayDateOnly = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+      const isPast = dayDateOnly < todayDateOnly;
+      const tasks = isPast ? ['—— 已过，不补 ——'] :
+        dayDow === 0 ? _sunTasks :
+        dayDow === 6 ? _satTasks : _weekdayTasks;
+      plan.push({ dow: _DOW_CN[dayDow], date: dayStr, tasks });
+    }
+    return plan;
+  }
+
 const CONFIG = {
   // Claude系统时间比北京时间慢12小时，此处为UTC+8北京时间
   timezoneOffset: 12, // 手动补12小时
-  currentWeek: 4,
-  weekLabel: '7.14 - 7.20',
+  currentWeek: _currentWeek,
+  weekLabel: _weekLabel,
 
   exams: [
     { name: '考研初试', date: '2026-12-19', key: 'exam' },
@@ -484,7 +530,7 @@ const CONFIG = {
 
   // 近期提醒
   reminders: [
-    { date: '7.14-7.20', text: '本周：普心每天1节 + 单词6天 + 语法复习' },
+    { date: _weekLabel, text: '本周：普心每天1节 + 单词6天 + 语法复习' },
     { date: '8月起', text: '开始徐涛政治强化班' },
     { date: '8月-9月', text: '各校发布2027考研招生简章' },
     { date: '9.24-9.27', text: '考研预报名 ⚠️' },
@@ -495,18 +541,10 @@ const CONFIG = {
   ],
 
   // 本周目标
-  weekGoal: '第4周（7.14-7.20）：考研5h + 考公0.5h + 工作4h。1.5倍速听课。',
+  weekGoal: '第'+_currentWeek+'周（'+_weekLabel+'）：考研5h + 考公0.5h + 工作4h。1.5倍速听课。',
 
   // 本周每日计划（预设，6h/天 = 8-9条任务）
-  weekPlan: [
-    { dow: '一', date: '7.14', tasks: ['—— 已过，不补 ——'] },
-    { dow: '二', date: '7.15', tasks: ['—— 已过，不补 ——'] },
-    { dow: '三', date: '7.16', tasks: ['📖普心课程1节(50min)','🖊普心习题(25min)','📖单词50词(15min)','📖语法1节(45min)','📖统计复习(30min)','📖徐涛马原1节(50min)','💼工作推进(1h)'] },
-    { dow: '四', date: '7.17', tasks: ['📖普心课程1节(50min)','🖊普心习题(25min)','📖单词50词(15min)','📖语法1节(45min)','📖统计复习(30min)','📖徐涛马原1节(50min)','💼工作推进(1h)'] },
-    { dow: '五', date: '7.18', tasks: ['📖普心课程1节(50min)','🖊普心习题(25min)','📖单词50词(15min)','📖语法1节(45min)','📖统计复习(30min)','📖徐涛马原1节(50min)','💼工作推进(1h)'] },
-    { dow: '六', date: '7.19', tasks: ['📖普心课程1节(1h)','🖊普心习题(25min)','📖单词50词(15min)','📖语法复习(30min)','📖统计第2章(40min)','📖徐涛马原1节(50min)','💼工作推进(1h)'] },
-    { dow: '日', date: '7.20', tasks: ['休息/轻复习','📖单词复习(10min)','🖊补本周未做题(30min)','📖普心笔记整理(45min)','🎯申论范文1篇(20min)','📋周复盘+下周计划'] },
-  ],
+  weekPlan: _buildWeekPlan(),
 
   // 各科进度
   subjects: [
