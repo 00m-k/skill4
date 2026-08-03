@@ -742,15 +742,20 @@ function buildStudyContext(daysLeft) {
   const dates = Object.keys(allEvenings).sort();
   const totalHoursDone = dates.reduce((sum, d) => sum + parseFloat(allEvenings[d].hours || 0), 0);
 
-  // 汇总已完成的科目
   const allSummaries = dates.map(d => allEvenings[d].summary || '').join(' ');
-  const doneSubjects = [];
-  if (allSummaries.includes('普心') || allSummaries.includes('普通心理')) doneSubjects.push('普心');
-  if (allSummaries.includes('统计')) doneSubjects.push('统计');
-  if (allSummaries.includes('测量')) doneSubjects.push('测量');
-  if (allSummaries.includes('语法')||allSummaries.includes('刘晓艳')) doneSubjects.push('语法');
-  if (allSummaries.includes('阅读')||allSummaries.includes('颉斌斌')) doneSubjects.push('阅读');
-  if (allSummaries.includes('政治')||allSummaries.includes('徐涛')) doneSubjects.push('政治');
+
+  // 明确当前进度（硬编码，与每日任务模板保持一致）
+  const currentProgress = [
+    '相生普心：第5章/23章（第5章=1h48min 1x→72min 1.5x）',
+    '端木统计：第2章/32章',
+    '王永平测量：未开始/29章',
+    '刘晓艳语法：第5节/35节（第1-4节已完成✅）',
+    '颉斌斌阅读：未开始',
+    '石雷鹏作文：未开始',
+    '徐涛政治：第2节/74节（第1节已完成✅）',
+    '考公言语(阿里木江)：未开始/12节',
+    '单词：每天50词新学，5500词总量',
+  ];
 
   const recentReports = dates.slice(-5).map(d => {
     const e = allEvenings[d];
@@ -760,7 +765,7 @@ function buildStudyContext(daysLeft) {
   return {
     totalHoursDone,
     totalDays: dates.length,
-    doneSubjects,
+    currentProgress,
     recentReports,
     allSummaries,
     dates
@@ -1068,28 +1073,29 @@ async function generateTomorrowTasks(apiKey) {
   const todayHours = todayData ? todayData.hours : '未知';
   const todayProblems = todayData ? (todayData.problem || '无') : '无';
 
-  const prompt = `你是考研备考助手。根据用户今天学习情况，生成明天任务清单。
+  const prompt = `你是考研备考助手。根据用户当前真实进度生成明天任务清单。
+
+## 当前真实进度（不可编造更低的章节！）
+${ctx.currentProgress.join('\n')}
 
 ## 考试与规划
 - 考研初试2026.12.19 → ${daysLeft}天后
+- 每日结构：考研5h + 考公0.5h + 工作4h
 - 四轮：听课(现在-9月中)→精读(9-10月)→背诵(11月)→模考(12月)
-- 专业课：普心13h+统计14h+测量8h
-- 英语：语法14h→阅读→作文。政治37h(8月后启动)。
 
-## 已启动科目：${ctx.doneSubjects.length ? ctx.doneSubjects.join('、') : '（无）'}
 ## 累计学习：${ctx.totalDays}天${ctx.totalHoursDone}h
-## 近期：${ctx.recentReports || '（无）'}
 
 ## 今日
 - 时长：${todayHours}h
 - 总结：${todaySummary}
 - 问题：${todayProblems}
+- 近期记录：${ctx.recentReports || '（无）'}
 
 ## 要求
-1. 明天4-6条任务，必做(必做)+选做(选做)
-2. 专业课每天至少3条
-3. 单词每天必做
-4. 没完成的任务滚动到明天
+1. 基于当前真实进度生成明天任务，绝不能用第1章/第1节等更低章节
+2. 普心必须从第5章开始，语法必须从第5节开始，徐涛必须从第2节开始
+3. 4-7条任务，必做+选做
+4. 单词每天50词必做
 5. 只返回JSON：[{text:15字内, tag:必做/选做}]`;
 
   try {
