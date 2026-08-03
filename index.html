@@ -489,18 +489,42 @@
     ? MASTER_PLAN.find(p => p.w === _currentWeek) || MASTER_PLAN[2]
     : null;
   
-  function _buildDayTasks(dow) {
-    if (!_thisWeek) return ['📖普心(50min)','📖统计(40min)','📖单词(15min)','💼工作(1h)'];
-    const tasks = [];
-    if (_thisWeek.px !== '—') tasks.push(`📖普心：${_thisWeek.px}(1h)`);
-    if (_thisWeek.tj !== '—') tasks.push(`📖统计：${_thisWeek.tj}(1h)`);
-    if (_thisWeek.cl !== '—') tasks.push(`📖测量：${_thisWeek.cl}(40min)`);
-    tasks.push(`📖单词：背新+复习(15min)`);
-    if (_thisWeek.yy !== '—') tasks.push(`📖英语：${_thisWeek.yy}(1h)`);
-    if (_thisWeek.zz !== '—') tasks.push(`📖政治：${_thisWeek.zz}(50min)`);
-    if (_thisWeek.kg !== '—') tasks.push(`📖考公：${_thisWeek.kg}(1h)`);
-    tasks.push('💼工作推进(1h)');
-    return tasks;
+  function _buildDayTasks(dayDow) {
+    if (!_thisWeek) return ['📖普心(50min)','📖统计(40min)','📌不背单词学新100+复习200(15min)','💼工作推进(1h)'];
+    const d = dayDow; // 1=周一...6=周六
+    const t = [];
+    
+    // 专业课（每天轮换重点）
+    if (d <= 3) {
+      if (_thisWeek.px !== '—') t.push(`📖普心：${_thisWeek.px}(1h)`);
+      if (_thisWeek.tj !== '—') t.push(`📖统计：${_thisWeek.tj}(40min)`);
+    } else if (d <= 5) {
+      if (_thisWeek.cl !== '—') t.push(`📖测量：${_thisWeek.cl}(40min)`);
+      if (_thisWeek.px !== '—') t.push(`🖊普心回顾+习题：${_thisWeek.px}(45min)`);
+    }
+    if (d === 6) {
+      t.push('📖专业课回顾(1h)');
+      t.push('🖊本周习题补做(40min)');
+    }
+    
+    // 单词（每天必须有）
+    t.push('📌不背单词：新词100+复习旧词200(15min)');
+    
+    // 英语
+    if (_thisWeek.yy !== '—' && d <= 5) t.push(`🇬🇧英语：${_thisWeek.yy}(1h)`);
+    if (d === 6) t.push('🇬🇧英语语法复习(30min)');
+    
+    // 政治
+    if (_thisWeek.zz !== '—' && d <= 5) t.push(`🇨🇳政治：${_thisWeek.zz}(50min)`);
+    if (d === 6) t.push('🇨🇳政治本周回顾(30min)');
+    
+    // 考公
+    if (_thisWeek.kg !== '—' && (d === 2 || d === 4 || d === 6)) t.push(`🏛考公：${_thisWeek.kg}(1h)`);
+    
+    // 工作（每天）
+    t.push(`💼工作推进(${_thisWeek.gz || '4h'})`);
+    
+    return t;
   }
 
   const _buildDayTasks(1) = _buildDayTasks(0);
@@ -582,7 +606,7 @@ const CONFIG = {
   ],
 
   // 本周目标
-  weekGoal: '第'+_currentWeek+'周（'+_weekLabel+'）：考研5h + 考公0.5h + 工作4h。1.5倍速听课。',
+  weekGoal: (function(){ if (!_thisWeek) return '第'+_currentWeek+'周（'+_weekLabel+'）：河北师大347，考研5h+考公0.5h+工作4h'; return '第'+_currentWeek+'周（'+_weekLabel+'）| 普心:'+_thisWeek.px+' | 统计:'+_thisWeek.tj+' | 测量:'+(_thisWeek.cl||'未开')+' | 英语:'+(_thisWeek.yy||'完成')+' | 政治:'+(_thisWeek.zz||'完成')+' | 考公:'+(_thisWeek.kg||'完成'); })(),
 
   // 本周每日计划（预设，6h/天 = 8-9条任务）
   weekPlan: _buildWeekPlan(),
