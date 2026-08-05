@@ -1,4 +1,4 @@
-<!-- v1785736483 -->
+﻿<!-- v1785736483 -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -429,16 +429,12 @@
     <div class="section-title">📈 本周概览</div>
     <div id="weekProgress"></div>
 
-  <!-- 📌 遗忘/未完成任务 -->
-    <div class="section-title" style="margin-top:24px;">📌 之前未完成（可勾选）</div>
+  <!-- 📌 本周累积未完成（每天自动更新）-->
+    <div class="section-title" style="margin-top:24px;">📌 本周累积未完成（可勾选，完成即消失）</div>
     <ul class="task-list" id="backlogList">
-      <li><input type="checkbox" id="bl_1" onchange="saveBacklog()"><span>🔴 相生普心第1-5章课后习题（一直没做）</span></li>
-      <li><input type="checkbox" id="bl_2" onchange="saveBacklog()"><span>🔴 端木统计第1-2章课后习题</span></li>
-      <li><input type="checkbox" id="bl_3" onchange="saveBacklog()"><span>🔴 刘晓艳语法第1-3节配套练习</span></li>
-      <li><input type="checkbox" id="bl_4" onchange="saveBacklog()"><span>🟡 学霸在线能力测试（拖了几天）</span></li>
-      <li><input type="checkbox" id="bl_5" onchange="saveBacklog()"><span>🟡 确认普心/统计习题做哪些（312 vs 347）</span></li>
-      <li><input type="checkbox" id="bl_6" onchange="saveBacklog()"><span>🟡 考公：粉笔APP下载+浏览题型</span></li>
+      <li style="color:var(--sub);">📊 加载中...</li>
     </ul>
+    <div style="margin-top:8px;font-size:11px;color:var(--sub);" id="backlogInfo"></div>
   </div>
 
 </div>
@@ -488,6 +484,10 @@
     const dd = String(d.getDate()).padStart(2,'0');
     return m+'.'+dd;
   }
+  function getBeijingDateKey(d) {
+    const bj = d || _getBeijingNow();
+    return bj.getFullYear()+'-'+String(bj.getMonth()+1).padStart(2,'0')+'-'+String(bj.getDate()).padStart(2,'0');
+  }
   const _NOW = _getBeijingNow();
   const _MONDAY = _getMonday(_NOW);
   const _WEEK1_START = new Date(2026,5,23);
@@ -499,81 +499,54 @@
     // 普心第5章已完成✅ → 第6章 | 徐涛第1-2节已完成✅ → 第3节 | 每天50词 | 考研5h+考公0.5h+工作4h
     // 数据来源：全部课程与计划汇总.md（每节精确时长）
   // 普心5已完成✅→第6章 | 语法1-4已完成✅→第5节 | 徐涛1-2已完成✅→第3节
-    // ── 不同日期的任务模板 ──
-  // 周一三五：专业课重点
-      // 周一三五：专业课重点日（纯学习~5h，含弹性~6h）
-  const _monWedFriTasks = [
-    '📖相生普心6-1(52min→35min 1.5x)',
-    '📖相生普心6-2(37min→25min 1.5x)',
-    '📖端木统计第2章(55min→37min 1.5x)',
-    '🖊普心第6章对应习题(40min)',
-    '🖊端木统计第2章课后习题(35min)',
-    '📌不背单词 新学50词(15min)',
-    '📖徐涛政治第3节(45min→30min 1.5x)',
-    '🖊徐涛优题库对应练习(25min)',
-    '🎯考公：粉笔言语15题(30min)',
-    '💼学霸能力测试/芒果审核'
-  ];
-  // 周二四：英语政治重点
-      // 周二四：英语政治重点日（纯学习~4.5h，含弹性~5.5h）
-  const _tueThuTasks = [
-    '📖刘晓艳语法第5节(9min→6min 1.5x)',
-    '📖徐涛政治第3节(45min→30min 1.5x)',
-    '🖊徐涛优题库对应练习(25min)',
-    '📖相生普心第6章回顾+笔记(40min)',
-    '🖊补普心前5章未做习题(40min)',
-    '📌不背单词 新学50词(15min)',
-    '🖊端木统计第2章课后习题(35min)',
-    '🎯考公：粉笔言语15题(30min)',
-    '🎯申论范文1篇+分析(30min)',
-    '💼芒果审核/阿里客服关注'
-  ];
-  // 周六：复习+补做
-  const _satTasks = [
-    '📖相生普心第6章回顾(1h)',
-    '🖊补前5章未做习题(1h)',
-    '📌单词复习本周250词(15min)',
-    '📖刘晓艳语法第3-5节复习(40min)',
-    '📖端木统计第2章回顾(30min)',
-    '📖徐涛第1-3节回顾(40min)',
-    '🎯考公言语回顾(30min)',
-    '💼工作推进(2h)'
-  ];
-  // 周日：休息+轻复盘
-  const _sunTasks = [
-    '休息',
-    '📌单词复习本周词汇(10min)',
-    '🖊补本周未做题(30min)',
-    '📋周复盘+笔记整理(45min)',
-    '🎯申论范文1篇(20min)',
-    '📋下周计划预览'
-  ];
-
-
+    // ═══════════════════════════════════════════════
+  //  每周任务模板 — 按周号索引！每周更新_WEEK_TASKS
+  // ═══════════════════════════════════════════════
+  const _WEEK_TASKS = {
+    4: {
+      monWedFri: ["📖相生普心6-1(52min→35min 1.5x)","📖相生普心6-2(37min→25min 1.5x)","📖端木统计第2章(55min→37min 1.5x)","🖊普心第6章对应习题(40min)","🖊端木统计第2章课后习题(35min)","📌不背单词 新学50词(15min)","📖徐涛政治第3节(45min→30min 1.5x)","🖊徐涛优题库对应练习(25min)","🎯考公：粉笔言语15题(30min)","💼学霸能力测试/芒果审核"],
+      tueThu: ["📖刘晓艳语法第5节(9min→6min 1.5x)","📖徐涛政治第3节(45min→30min 1.5x)","🖊徐涛优题库对应练习(25min)","📖相生普心第6章回顾+笔记(40min)","🖊补普心前5章未做习题(40min)","📌不背单词 新学50词(15min)","🖊端木统计第2章课后习题(35min)","🎯考公：粉笔言语15题(30min)","🎯申论范文1篇+分析(30min)","💼芒果审核/阿里客服关注"],
+      sat: ["📋本周回顾+整理笔记(1.5h)","🖊补本周未完成习题(1h)","📌单词复习本周250词(15min)","📖徐涛第1-3节回顾(40min)","🎯考公言语回顾(30min)","💼工作推进(2h)"],
+      sun: ["休息","📌单词复习本周词汇(10min)","🖊补本周未做题(30min)","📋周复盘+笔记整理(45min)","🎯申论范文1篇(20min)","📋下周计划预览"]
+    },
+    5: {
+      monWedFri: ["📖相生普心7-1(52min→35min 1.5x)","📖相生普心7-2(37min→25min 1.5x)","📖端木统计第3章(55min→37min 1.5x)","🖊普心第7章对应习题(40min)","🖊端木统计第3章课后习题(35min)","📌不背单词 新学50词(15min)","📖徐涛政治第7节(45min→30min 1.5x)","🖊徐涛优题库对应练习(25min)","🎯考公：粉笔言语15题(30min)","💼学霸能力测试/芒果审核"],
+      tueThu: ["📖刘晓艳语法第8节(9min→6min 1.5x)","📖徐涛政治第8节(45min→30min 1.5x)","🖊徐涛优题库对应练习(25min)","📖相生普心第7章回顾+笔记(40min)","🖊补普心前7章未做习题(40min)","📌不背单词 新学50词(15min)","🖊端木统计第3章课后习题(35min)","🎯考公：粉笔言语15题(30min)","🎯申论范文1篇+分析(30min)","💼芒果审核/阿里客服关注"],
+      sat: ["📋本周回顾+整理笔记(1.5h)","🖊补本周未完成习题(1h)","📌单词复习本周250词(15min)","📖徐涛第4-8节回顾(40min)","🎯考公言语回顾(30min)","💼工作推进(2h)"],
+      sun: ["休息","📌单词复习本周词汇(10min)","🖊补本周未做题(30min)","📋周复盘+笔记整理(45min)","🎯申论范文1篇(20min)","📋下周计划预览"]
+    },
+    6: {
+      monWedFri: ["📖相生普心9-1(52min→35min 1.5x)","📖端木统计第5章(55min→37min 1.5x)","🖊普心第9章对应习题(40min)","🖊端木统计第5章课后习题(35min)","📌不背单词 新学50词(15min)","📖徐涛政治第11节(45min→30min 1.5x)","🖊徐涛优题库对应练习(25min)","🎯考公：粉笔言语15题(30min)","💼学霸能力测试/芒果审核"],
+      tueThu: ["📖刘晓艳语法第12节(9min→6min 1.5x)","📖徐涛政治第12节(45min→30min 1.5x)","🖊徐涛优题库对应练习(25min)","📖相生普心第9章回顾+笔记(40min)","🖊补普心前9章未做习题(40min)","📌不背单词 新学50词(15min)","🖊端木统计第5章课后习题(35min)","🎯考公：粉笔言语15题(30min)","🎯申论范文1篇+分析(30min)","💼芒果审核/阿里客服关注"],
+      sat: ["📋本周回顾+整理笔记(1.5h)","🖊补本周未完成习题(1h)","📌单词复习本周250词(15min)","📖徐涛第9-12节回顾(40min)","🎯考公言语回顾(30min)","💼工作推进(2h)"],
+      sun: ["休息","📌单词复习本周词汇(10min)","🖊补本周未做题(30min)","📋周复盘+笔记整理(45min)","🎯申论范文1篇(20min)","📋下周计划预览"]
+    }
+  };
+  function _getWeekTasks(wk) {
+    if (_WEEK_TASKS[wk]) return _WEEK_TASKS[wk];
+    const defined = Object.keys(_WEEK_TASKS).map(Number).sort((a,b)=>a-b);
+    return _WEEK_TASKS[defined.filter(w=>w<=wk).pop()||defined[0]];
+  }
+  function _getDayTasks(wk, dow) {
+    const wt = _getWeekTasks(wk);
+    if (dow===0) return wt.sun;
+    if (dow===6) return wt.sat;
+    if (dow===1||dow===3||dow===5) return wt.monWedFri;
+    return wt.tueThu;
+  }
   function _buildWeekPlan() {
     const plan = [];
     const today = _getBeijingNow();
-    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const todayKey = getBeijingDateKey(today);
     for (let i = 0; i < 7; i++) {
       const day = new Date(_MONDAY);
       day.setDate(_MONDAY.getDate() + i);
       const dayDow = day.getDay();
       const dayStr = _fmtISOMD(day);
-      const dayDateOnly = new Date(day.getFullYear(), day.getMonth(), day.getDate());
-      const isPast = dayDateOnly < todayDateOnly;
-      let tasks;
-      if (isPast) {
-        tasks = ['—— 已过，不补 ——'];
-      } else if (dayDow === 0) {
-        tasks = _sunTasks;
-      } else if (dayDow === 6) {
-        tasks = _satTasks;
-      } else if (dayDow === 1 || dayDow === 3 || dayDow === 5) {
-        tasks = _monWedFriTasks;  // 周一三五：专业课重点
-      } else {
-        tasks = _tueThuTasks;     // 周二四：英语政治重点
-      }
-      plan.push({ dow: _DOW_CN[dayDow], date: dayStr, tasks });
+      const dayKey = getBeijingDateKey(day);
+      const isPast = dayKey < todayKey;
+      const tasks = _getDayTasks(_currentWeek, dayDow);
+      plan.push({ dow: _DOW_CN[dayDow], date: dayStr, tasks, isPast, dayKey });
     }
     return plan;
   }
@@ -714,7 +687,7 @@ function renderTasks() {
   const tasks = aiTasks || wpTasks || CONFIG.morningTasks;
   list.innerHTML = tasks.map((t, i) => `
     <li>
-      <input type="checkbox" id="t${i}" onchange="saveTask('t${i}')" ${loadTask('t${i}')?'checked':''}>
+      <input type="checkbox" id="t${i}" onchange="saveTask('t${i}')" ${isTaskDone(t.text)?'checked':''}>
       <span>${t.text} ${t.tag==='must'?'<span class="task-tag tag-must">必做</span>':'<span class="task-tag tag-opt">选做</span>'}</span>
     </li>
   `).join('');
@@ -859,12 +832,12 @@ function getTodayTasks() {
 function renderEveningTasks() {
   const list = document.getElementById('eveningTaskList');
   const tasks = getTodayTasks();
-  const allDone = tasks.every((_, i) => loadTask('t'+i));
+  const allDone = tasks.every(t => isTaskDone(t.text));
   list.innerHTML = tasks.map((t, i) => {
-    const checked = loadTask('t'+i);
+    const checked = isTaskDone(t.text);
     return `
       <li>
-        <input type="checkbox" onchange="saveTask('t${i}');renderEveningTasks();" ${checked?'checked':''}>
+        <input type="checkbox" id="evt${i}" onchange="saveTask('evt${i}');renderEveningTasks();" ${checked?'checked':''}>
         <span>${t.text}</span>
         ${checked?' <span style="font-size:12px;color:var(--green);">✅</span>':''}
       </li>
@@ -888,10 +861,11 @@ function renderEvening() {
   renderEveningTasks();
   renderEveningHistory();
   loadEveningDraft();
+  renderBacklog();
   document.getElementById('weekProgress').innerHTML = `
     <div style="font-size:13px;color:var(--sub);">
       本周 ${CONFIG.weekLabel} · 第${CONFIG.currentWeek}周<br><br>
-      ${CONFIG.weekPlan.map(d => `<div style="margin:3px 0">周${d.dow}：${d.tasks}</div>`).join('')}
+      ${CONFIG.weekPlan.map(d => `<div style="margin:3px 0">周${d.dow}：${d.tasks.join('，')}</div>`).join('')}
     </div>
   `;
 }
@@ -902,7 +876,7 @@ function renderEvening() {
 function saveEvening() {
   const data = {
     date: getDateKey(),
-    tasks: CONFIG.morningTasks.map(t => ({ text: t.text, done: loadTask(t.id) })),
+    tasks: getTodayTasks().map(t => ({ text: t.text, done: isTaskDone(t.text) })),
     hours: document.getElementById('evHours').value || '0',
     summary: document.getElementById('evSummary').value,
     problem: document.getElementById('evProblem').value,
@@ -924,6 +898,7 @@ function saveEvening() {
   pushToGitHub(data);
 
   renderEveningHistory();
+  renderBacklog();
 }
 
 function pushToGitHub(data) {
@@ -1058,7 +1033,7 @@ async function dayDone() {
 function saveEveningSilent() {
   const data = {
     date: getDateKey(),
-    tasks: CONFIG.morningTasks.map(t => ({ text: t.text, done: loadTask(t.id) })),
+    tasks: getTodayTasks().map(t => ({ text: t.text, done: isTaskDone(t.text) })),
     hours: document.getElementById('evHours').value || '0',
     summary: document.getElementById('evSummary').value,
     problem: document.getElementById('evProblem').value,
@@ -1255,35 +1230,87 @@ function saveToken() {
   setTimeout(() => document.getElementById('tokenStatus').textContent = '', 2000);
 }
 
-// Backlog localStorage — 保存勾选状态
-function saveBacklog() {
-  const state = {};
-  for (let i = 1; i <= 6; i++) {
-    const el = document.getElementById('bl_' + i);
-    if (el) state['bl_' + i] = el.checked;
+// Dynamic backlog — 本周所有过去天数中未完成的任务汇总
+function getWeeklyUnfinished() {
+  const unfinished = [];
+  const plan = CONFIG.weekPlan || [];
+  const todayKey = getDateKey();
+  for (const day of plan) {
+    if (day.dayKey >= todayKey) continue;
+    if (!day.tasks || !day.tasks.length) continue;
+    const completedSet = getCompletedSet(day.dayKey);
+    for (const t of day.tasks) {
+      if (!completedSet.has(t)) unfinished.push({ date: day.dayKey, dow: day.dow, text: t });
+    }
   }
-  localStorage.setItem('skill4_backlog', JSON.stringify(state));
+  return unfinished;
 }
-function loadBacklog() {
-  const state = JSON.parse(localStorage.getItem('skill4_backlog') || '{}');
-  for (let i = 1; i <= 6; i++) {
-    const el = document.getElementById('bl_' + i);
-    if (el && state['bl_' + i]) el.checked = true;
+function renderBacklog() {
+  const list = document.getElementById('backlogList');
+  const info = document.getElementById('backlogInfo');
+  if (!list) return;
+  const unfinished = getWeeklyUnfinished();
+  if (!unfinished.length) {
+    list.innerHTML = '<li style="color:var(--green);">🎉 本周之前所有任务已完成！</li>';
+    if (info) info.textContent = '';
+    return;
   }
+  const todayKey = getDateKey();
+  const completedSet = getCompletedSet(todayKey);
+  list.innerHTML = unfinished.map((u, i) => {
+    const done = completedSet.has(u.text);
+    return `<li>
+      <input type="checkbox" id="bl_${i}" onchange="saveBacklogItem('bl_${i}')" ${done?'checked':''}>
+      <span style="${done?'text-decoration:line-through;color:#bbb;':''}font-size:13px;">🔴 ${u.text}</span>
+      <span style="font-size:10px;color:var(--sub);margin-left:4px;">(${u.date} 周${u.dow})</span>
+    </li>`;
+  }).join('');
+  if (info) info.textContent = `${unfinished.length} 条未完成 · 来自 ${new Set(unfinished.map(u=>u.date)).size} 天前 · 勾选后标记为今天完成`;
 }
-
-// Task localStorage
-function saveTask(id) {
+function saveBacklogItem(id) {
   const el = document.getElementById(id);
-  if (el) localStorage.setItem('daily_' + getDateKey() + '_' + id, el.checked ? '1' : '0');
+  if (!el) return;
+  const span = el.parentElement.querySelector('span');
+  const text = span ? span.textContent.replace(/🔴\s*/, '').trim() : '';
+  if (!text) return;
+  const set = getCompletedSet();
+  if (el.checked) set.add(text); else set.delete(text);
+  localStorage.setItem('skill4_done_'+getDateKey(), JSON.stringify([...set]));
+  renderBacklog();
+}
+function saveBacklog() { renderBacklog(); }
+function loadBacklog() { renderBacklog(); }
+
+// Task localStorage — content-based (text=key, survives task source changes & refresh)
+function getDateKey() {
+  const bj = new Date(new Date().getTime() + new Date().getTimezoneOffset() * 60000 + 8 * 3600000);
+  return `${bj.getFullYear()}-${String(bj.getMonth()+1).padStart(2,'0')}-${String(bj.getDate()).padStart(2,'0')}`;
+}
+function _getTaskTextById(id) {
+  const el = document.getElementById(id);
+  if (!el) return '';
+  const span = el.parentElement.querySelector('span');
+  if (!span) return '';
+  return (span.childNodes[0] ? span.childNodes[0].textContent : span.textContent).replace(/✅/g,'').trim();
+}
+function getCompletedSet(dk) {
+  const key = dk || getDateKey();
+  try { return new Set(JSON.parse(localStorage.getItem('skill4_done_'+key)||'[]')); }
+  catch { return new Set(); }
+}
+function saveTask(id) {
+  const text = _getTaskTextById(id);
+  if (!text) return;
+  const el = document.getElementById(id);
+  const set = getCompletedSet();
+  if (el && el.checked) set.add(text); else set.delete(text);
+  localStorage.setItem('skill4_done_'+getDateKey(), JSON.stringify([...set]));
   renderEveningTasks();
 }
+function isTaskDone(text) { return getCompletedSet().has(text); }
 function loadTask(id) {
-  return localStorage.getItem('daily_' + getDateKey() + '_' + id) === '1';
-}
-function getDateKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+  const text = _getTaskTextById(id);
+  return text ? isTaskDone(text) : false;
 }
 
 function doCheckin() {
@@ -1375,9 +1402,14 @@ function selectWeekDay(dKey) {
   }
   // 3. 预设周计划作为fallback
   else if (planEntry && planEntry.tasks && planEntry.tasks.length) {
-    html += '<div style="margin-bottom:4px;font-weight:600;">📋 当日计划：</div>';
+    const pastLabel = planEntry.isPast ? ' （已过，未完成可在晚报累积补做）' : '';
+    html += `<div style="margin-bottom:4px;font-weight:600;">📋 当日计划${pastLabel}：</div>`;
+    const completedSet = getCompletedSet(planEntry.dayKey || dKey);
     planEntry.tasks.forEach(t => {
-      html += `<div>🔵 ${t}</div>`;
+      const done = completedSet.has(t);
+      const icon = done ? '✅' : (planEntry.isPast ? '🔴' : '🔵');
+      const style = done ? 'text-decoration:line-through;color:#bbb;' : '';
+      html += `<div style="${style}">${icon} ${t}</div>`;
     });
   }
   // 4. 既无AI任务也无预设计划
@@ -1416,7 +1448,7 @@ function renderEvening() {
   document.getElementById('weekProgress').innerHTML = `
     <div style="font-size:13px;color:var(--sub);">
       本周 ${CONFIG.weekLabel} · 第${CONFIG.currentWeek}周<br><br>
-      ${CONFIG.weekPlan.map(d => `<div style="margin:3px 0">周${d.dow}：${d.tasks}</div>`).join('')}
+      ${CONFIG.weekPlan.map(d => `<div style="margin:3px 0">周${d.dow}：${d.tasks.join('，')}</div>`).join('')}
     </div>
   `;
 }
@@ -1453,10 +1485,7 @@ function init() {
   renderTeachers();
   renderEvening();
   loadBacklog();
-  // 清空旧AI任务缓存，强制使用最新CONFIG模板
-  localStorage.removeItem('skill4_ai_tasks_date');
-  localStorage.removeItem('skill4_ai_tasks_date_v2');
-  localStorage.removeItem('skill4_ai_tasks_date_v3');
+  // AI任务缓存保留（不清除，刷新后勾选不丢失）
   setInterval(updateCountdowns, 60000);
 }
 
