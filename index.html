@@ -660,6 +660,8 @@ function switchTab(tab) {
   document.getElementById('btnMorning').classList.toggle('active', isMorning);
   document.getElementById('btnEvening').classList.toggle('active', !isMorning);
   document.querySelector('.header h1').textContent = isMorning ? '🌅 早报' : '🌙 晚报';
+  // 切换时刷新视图，保证勾选状态同步
+  if (isMorning) renderTasks(); else renderEvening();
 }
 
 // 自动判断早报/晚报
@@ -1230,17 +1232,30 @@ function saveToken() {
   setTimeout(() => document.getElementById('tokenStatus').textContent = '', 2000);
 }
 
-// Dynamic backlog — 本周所有过去天数中未完成的任务汇总
-function getWeeklyUnfinished() {
+// Dynamic backlog — 所有历史未完成任务汇总（跨周累积）
+function getAllUnfinished() {
   const unfinished = [];
-  const plan = CONFIG.weekPlan || [];
   const todayKey = getDateKey();
-  for (const day of plan) {
-    if (day.dayKey >= todayKey) continue;
-    if (!day.tasks || !day.tasks.length) continue;
-    const completedSet = getCompletedSet(day.dayKey);
-    for (const t of day.tasks) {
-      if (!completedSet.has(t)) unfinished.push({ date: day.dayKey, dow: day.dow, text: t });
+  const today = _getBeijingNow();
+  // 扫描从W1开始到昨天为止的所有日子
+  const monday = _getMonday(today);
+  for (let w = 1; w <= _currentWeek; w++) {
+    const weekMonday = new Date(_WEEK1_START);
+    weekMonday.setDate(_WEEK1_START.getDate() + (w - 1) * 7);
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(weekMonday);
+      day.setDate(weekMonday.getDate() + i);
+      const dayKey = getBeijingDateKey(day);
+      if (dayKey >= todayKey) continue; // 跳过今天和未来
+      const dayDow = day.getDay();
+      const tasks = _getDayTasks(w, dayDow);
+      if (!tasks || !tasks.length) continue;
+      const completedSet = getCompletedSet(dayKey);
+      for (const t of tasks) {
+        if (!completedSet.has(t)) {
+          unfinished.push({ date: dayKey, dow: ['日','一','二','三','四','五','六'][dayDow], text: t, origDate: dayKey });
+        }
+      }
     }
   }
   return unfinished;
@@ -1249,7 +1264,7 @@ function renderBacklog() {
   const list = document.getElementById('backlogList');
   const info = document.getElementById('backlogInfo');
   if (!list) return;
-  const unfinished = getWeeklyUnfinished();
+  const unfinished = getAllUnfinished();
   if (!unfinished.length) {
     list.innerHTML = '<li style="color:var(--green);">🎉 本周之前所有任务已完成！</li>';
     if (info) info.textContent = '';
@@ -1260,12 +1275,12 @@ function renderBacklog() {
   list.innerHTML = unfinished.map((u, i) => {
     const done = completedSet.has(u.text);
     return `<li>
-      <input type="checkbox" id="bl_${i}" onchange="saveBacklogItem('bl_${i}')" ${done?'checked':''}>
+      <input type="checkbox" id="bl_${i}" onchange="saveBacklogItem('bl_${i}')" data-origdate="${u.origDate}" ${done?'checked':''}>
       <span style="${done?'text-decoration:line-through;color:#bbb;':''}font-size:13px;">🔴 ${u.text}</span>
       <span style="font-size:10px;color:var(--sub);margin-left:4px;">(${u.date} 周${u.dow})</span>
     </li>`;
   }).join('');
-  if (info) info.textContent = `${unfinished.length} 条未完成 · 来自 ${new Set(unfinished.map(u=>u.date)).size} 天前 · 勾选后标记为今天完成`;
+  if (info) info.textContent = `${unfinished.length} 条未完成 · 来自 ${new Set(unfinished.map(u=>u.date)).size} 天 · 勾选完成即从列表消失（下周刷新不再出现）`;
 }
 function saveBacklogItem(id) {
   const el = document.getElementById(id);
@@ -1273,9 +1288,17 @@ function saveBacklogItem(id) {
   const span = el.parentElement.querySelector('span');
   const text = span ? span.textContent.replace(/🔴\s*/, '').trim() : '';
   if (!text) return;
+  // 更新今天完成集
   const set = getCompletedSet();
   if (el.checked) set.add(text); else set.delete(text);
   localStorage.setItem('skill4_done_'+getDateKey(), JSON.stringify([...set]));
+  // 同时更新原始日期的完成集，这样下次刷新不再出现
+  const origDate = el.getAttribute('data-origdate');
+  if (origDate) {
+    const origSet = getCompletedSet(origDate);
+    if (el.checked) origSet.add(text); else origSet.delete(text);
+    localStorage.setItem('skill4_done_'+origDate, JSON.stringify([...origSet]));
+  }
   renderBacklog();
 }
 function saveBacklog() { renderBacklog(); }
