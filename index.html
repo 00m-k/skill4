@@ -1336,13 +1336,6 @@ function loadTask(id) {
   return text ? isTaskDone(text) : false;
 }
 
-function doCheckin() {
-  const allDone = CONFIG.morningTasks.every(t => loadTask(t.id));
-  if (!allDone) { alert('还有任务未完成哦～'); return; }
-  localStorage.setItem('daily_' + getDateKey() + '__checkin__', '1');
-  renderEveningTasks();
-}
-
 // 渲染教师编动态
 function renderTeacherUpdates() {
   const el = document.getElementById('teacherUpdates');
@@ -1462,18 +1455,6 @@ function renderTeachers() {
   document.getElementById('teacherChips').innerHTML = CONFIG.teachers.map(t =>
     `<span class="teacher-chip">${t}</span>`
   ).join('');
-}
-
-// 渲染晚报
-function renderEvening() {
-  renderEveningTasks();
-  document.getElementById('tomorrowPreview').textContent = CONFIG.tomorrowPreview;
-  document.getElementById('weekProgress').innerHTML = `
-    <div style="font-size:13px;color:var(--sub);">
-      本周 ${CONFIG.weekLabel} · 第${CONFIG.currentWeek}周<br><br>
-      ${CONFIG.weekPlan.map(d => `<div style="margin:3px 0">周${d.dow}：${d.tasks.join('，')}</div>`).join('')}
-    </div>
-  `;
 }
 
 // ============================================================
