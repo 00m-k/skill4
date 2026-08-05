@@ -1631,6 +1631,14 @@ function checkPwd() {
 //  🚀 启动
 // ============================================================
 function init() {
+  // 缓存版本：升级模板结构后自动清理旧AI缓存
+  const CACHE_VER = 'v2-daily';
+  if (localStorage.getItem('skill4_cache_ver') !== CACHE_VER) {
+    for (const k of Object.keys(localStorage)) {
+      if (k.startsWith('skill4_ai_tasks_')) localStorage.removeItem(k);
+    }
+    localStorage.setItem('skill4_cache_ver', CACHE_VER);
+  }
   updateDate();
   updateCountdowns();
   autoTab();
@@ -1642,7 +1650,7 @@ function init() {
   renderTeachers();
   renderEvening();
   loadBacklog();
-  // AI任务缓存保留（不清除，刷新后勾选不丢失）
+  // AI任务缓存：模板版本升级时自动清除，平时保留
   setInterval(updateCountdowns, 60000);
 }
 
