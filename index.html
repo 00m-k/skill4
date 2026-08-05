@@ -1413,27 +1413,59 @@ function getAllUnfinished() {
   }
   return unfinished;
 }
+// ── Backlog weekly-refresh system ──
+function getBacklogCheckedSet() {
+  try { return new Set(JSON.parse(localStorage.getItem('skill4_backlog_checked')||'[]')); }
+  catch { return new Set(); }
+}
+function getBacklogWeek() {
+  return localStorage.getItem('skill4_backlog_week') || '';
+}
+function applyWeeklyBacklogRefresh() {
+  // 如果进入新的一周，把上周勾选的任务同步到原始日期
+  const thisMonday = getBeijingDateKey(_getMonday(_getBeijingNow()));
+  const lastMonday = getBacklogWeek();
+  if (lastMonday && lastMonday !== thisMonday) {
+    const checked = getBacklogCheckedSet();
+    if (checked.size > 0) {
+      // 需要知道每个勾选任务对应的原始日期 → 从 getAllUnfinished 反查
+      const unfinished = getAllUnfinished();
+      for (const u of unfinished) {
+        if (checked.has(u.text)) {
+          const origSet = getCompletedSet(u.origDate);
+          origSet.add(u.text);
+          localStorage.setItem('skill4_done_'+u.origDate, JSON.stringify([...origSet]));
+        }
+      }
+    }
+    // 清空上周的勾选记录
+    localStorage.removeItem('skill4_backlog_checked');
+  }
+  localStorage.setItem('skill4_backlog_week', thisMonday);
+}
 function renderBacklog() {
   const list = document.getElementById('backlogList');
   const info = document.getElementById('backlogInfo');
   if (!list) return;
   const unfinished = getAllUnfinished();
   if (!unfinished.length) {
-    list.innerHTML = '<li style="color:var(--green);">🎉 本周之前所有任务已完成！</li>';
+    list.innerHTML = '<li style="color:var(--green);">🎉 所有历史任务已完成！</li>';
     if (info) info.textContent = '';
     return;
   }
+  const blChecked = getBacklogCheckedSet();
   const todayKey = getDateKey();
   const completedSet = getCompletedSet(todayKey);
   list.innerHTML = unfinished.map((u, i) => {
-    const done = completedSet.has(u.text);
+    const done = blChecked.has(u.text);
     return `<li>
       <input type="checkbox" id="bl_${i}" onchange="saveBacklogItem('bl_${i}')" data-origdate="${u.origDate}" ${done?'checked':''}>
       <span style="${done?'text-decoration:line-through;color:#bbb;':''}font-size:13px;">🔴 ${u.text}</span>
       <span style="font-size:10px;color:var(--sub);margin-left:4px;">(${u.date} 周${u.dow})</span>
     </li>`;
   }).join('');
-  if (info) info.textContent = `${unfinished.length} 条未完成 · 来自 ${new Set(unfinished.map(u=>u.date)).size} 天 · 勾选完成即从列表消失（下周刷新不再出现）`;
+  const checkedCount = blChecked.size;
+  if (info) info.textContent = `${unfinished.length} 条未完成 · ${checkedCount} 条本周已勾选 · 下周一刷新（勾错可取消）`;
 }
 function saveBacklogItem(id) {
   const el = document.getElementById(id);
@@ -1441,17 +1473,10 @@ function saveBacklogItem(id) {
   const span = el.parentElement.querySelector('span');
   const text = span ? span.textContent.replace(/🔴\s*/, '').trim() : '';
   if (!text) return;
-  // 更新今天完成集
-  const set = getCompletedSet();
-  if (el.checked) set.add(text); else set.delete(text);
-  localStorage.setItem('skill4_done_'+getDateKey(), JSON.stringify([...set]));
-  // 同时更新原始日期的完成集，这样下次刷新不再出现
-  const origDate = el.getAttribute('data-origdate');
-  if (origDate) {
-    const origSet = getCompletedSet(origDate);
-    if (el.checked) origSet.add(text); else origSet.delete(text);
-    localStorage.setItem('skill4_done_'+origDate, JSON.stringify([...origSet]));
-  }
+  // 只更新本周的backlog勾选状态，不立即写原始日期
+  const blChecked = getBacklogCheckedSet();
+  if (el.checked) blChecked.add(text); else blChecked.delete(text);
+  localStorage.setItem('skill4_backlog_checked', JSON.stringify([...blChecked]));
   renderBacklog();
 }
 function saveBacklog() { renderBacklog(); }
@@ -1648,6 +1673,7 @@ function init() {
   renderWeekPlan();
   renderSubjectProgress();
   renderTeachers();
+  applyWeeklyBacklogRefresh(); // 跨周时把上周勾选同步到原始日期
   renderEvening();
   loadBacklog();
   // AI任务缓存：模板版本升级时自动清除，平时保留
