@@ -625,7 +625,8 @@
     const defined = Object.keys(_WEEK_TASKS).map(Number).sort((a,b)=>a-b);
     if (!defined.length) return { monWedFri:[], tueThu:[], sat:[], sun:[] };
     const nearest = defined.filter(w=>w<=wk).pop();
-    return _WEEK_TASKS[nearest] || _WEEK_TASKS[defined[defined.length-1]];
+    if (!nearest) return { monWedFri:[], tueThu:[], sat:[], sun:[] };
+    return _WEEK_TASKS[nearest];
   }
   function _getDayTasks(wk, dow) {
     const wt = _getWeekTasks(wk);
@@ -747,7 +748,7 @@ function updateCountdowns() {
 
 // 日期显示
 function updateDate() {
-  const now = new Date();
+  const now = _getBeijingNow();
   const weekMap = ['日','一','二','三','四','五','六'];
   const str = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 周${weekMap[now.getDay()]}`;
   document.getElementById('dateDisplay').textContent = str;
@@ -767,13 +768,13 @@ function switchTab(tab) {
 
 // 自动判断早报/晚报
 function autoTab() {
-  const hour = new Date().getHours();
+  const hour = _getBeijingNow().getHours();
   switchTab(hour < 17 ? 'morning' : 'evening');
 }
 
 // 渲染任务列表
 function getTodayFromWeekPlan() {
-  const now = new Date();
+  const now = _getBeijingNow();
   const dow = now.getDay();
   const dowMap = { 0:'日', 1:'一', 2:'二', 3:'三', 4:'四', 5:'五', 6:'六' };
   const entry = (CONFIG.weekPlan || []).find(e => e.dow === dowMap[dow]);
@@ -951,7 +952,7 @@ function renderEveningTasks() {
 }
 
 function getDateLabel() {
-  const d = new Date();
+  const d = _getBeijingNow();
   const w = ['日','一','二','三','四','五','六'];
   return `${d.getMonth()+1}月${d.getDate()}日 周${w[d.getDay()]}`;
 }
@@ -1455,7 +1456,7 @@ function renderWeekPlan() {
   document.getElementById('weekPlanTitle').textContent =
     `📐 本周计划（第${CONFIG.currentWeek}周 · ${CONFIG.weekLabel}）`;
 
-  const today = new Date();
+  const today = _getBeijingNow();
   const w = ['日','一','二','三','四','五','六'];
   // 本周一到周日
   const dayOfWeek = today.getDay();
