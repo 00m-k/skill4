@@ -525,14 +525,17 @@
   function _getWeekTasks(wk) {
     if (_WEEK_TASKS[wk]) return _WEEK_TASKS[wk];
     const defined = Object.keys(_WEEK_TASKS).map(Number).sort((a,b)=>a-b);
-    return _WEEK_TASKS[defined.filter(w=>w<=wk).pop()||defined[0]];
+    if (!defined.length) return { monWedFri:[], tueThu:[], sat:[], sun:[] };
+    const nearest = defined.filter(w=>w<=wk).pop();
+    return _WEEK_TASKS[nearest] || _WEEK_TASKS[defined[defined.length-1]];
   }
   function _getDayTasks(wk, dow) {
     const wt = _getWeekTasks(wk);
-    if (dow===0) return wt.sun;
-    if (dow===6) return wt.sat;
-    if (dow===1||dow===3||dow===5) return wt.monWedFri;
-    return wt.tueThu;
+    if (!wt) return [];
+    if (dow===0) return wt.sun||[];
+    if (dow===6) return wt.sat||[];
+    if (dow===1||dow===3||dow===5) return wt.monWedFri||[];
+    return wt.tueThu||[];
   }
   function _buildWeekPlan() {
     const plan = [];
@@ -863,7 +866,7 @@ function renderEvening() {
   renderEveningTasks();
   renderEveningHistory();
   loadEveningDraft();
-  renderBacklog();
+  try { renderBacklog(); } catch(e) { console.error(e); }
   document.getElementById('weekProgress').innerHTML = `
     <div style="font-size:13px;color:var(--sub);">
       本周 ${CONFIG.weekLabel} · 第${CONFIG.currentWeek}周<br><br>
