@@ -1,4 +1,4 @@
-﻿<!-- v1785736483 -->
+﻿<!-- v1785736484 -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -391,6 +391,12 @@
   <div class="section">
     <div class="section-title">✅ 今日任务完成情况</div>
     <ul class="task-list" id="eveningTaskList"></ul>
+  </div>
+
+  <!-- 昨日晚报回顾 -->
+  <div class="section" id="yesterdayEveningSection" style="display:none;background:#fffbe6;border:1px solid #f5a623;border-radius:12px;padding:12px;">
+    <div class="section-title" style="color:#f5a623;">📅 昨日晚报回顾 <button onclick="copyYesterdayEvening()" style="font-size:11px;padding:2px 8px;border:1px solid #f5a623;background:#fff;color:#f5a623;border-radius:4px;cursor:pointer;">📋 一键复制发给AI</button></div>
+    <div id="yesterdayEveningContent" style="font-size:14px;line-height:1.8;"></div>
   </div>
 
   <!-- 学习记录 -->
@@ -1020,6 +1026,7 @@ function doCheckin() {
 
 function renderEvening() {
   renderEveningTasks();
+  renderYesterdayEvening();
   renderEveningHistory();
   loadEveningDraft();
   try { renderBacklog(); } catch(e) { console.error(e); }
@@ -1154,10 +1161,58 @@ function renderEveningHistory() {
   }
   document.getElementById('evHistory').innerHTML = dates.map(d => {
     const e = allEvenings[d];
-    return `<div style="padding:6px 0;border-bottom:1px solid var(--border);">
-      <b>${d}</b> · ${e.hours}h · ${e.summary ? e.summary.slice(0,30)+(e.summary.length>30?'...':'') : '未写总结'}
+    const fullText = `📅 ${d} ${['日','一','二','三','四','五','六'][new Date(d).getDay()]}\n⏱ ${e.hours}h\n📝 ${e.summary || '未写总结'}\n❗ ${e.problem || '无'}\n📌 ${e.tomorrow || '无'}`;
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <b>${d}</b>
+        <span style="font-size:11px;color:var(--sub);">${e.hours}h</span>
+      </div>
+      <div style="font-size:13px;color:var(--text);margin-top:2px;">${e.summary || '未写总结'}</div>
+      ${e.problem ? `<div style="font-size:12px;color:var(--red);margin-top:2px;">❗ ${e.problem}</div>` : ''}
+      ${e.tomorrow ? `<div style="font-size:12px;color:var(--blue);margin-top:2px;">📌 ${e.tomorrow}</div>` : ''}
+      <button onclick="copyEveningReport('${d}')" style="font-size:10px;padding:2px 6px;border:1px solid var(--border);background:#fff;color:var(--sub);border-radius:4px;cursor:pointer;margin-top:4px;">📋 复制</button>
     </div>`;
   }).join('');
+}
+
+let _yesterdayEveningData = null;
+function renderYesterdayEvening() {
+  const allEvenings = JSON.parse(localStorage.getItem('skill4_evenings') || '{}');
+  const today = _getBeijingNow();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const yKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth()+1).padStart(2,'0')}-${String(yesterday.getDate()).padStart(2,'0')}`;
+  const data = allEvenings[yKey];
+  if (!data) {
+    document.getElementById('yesterdayEveningSection').style.display = 'none';
+    return;
+  }
+  _yesterdayEveningData = { key: yKey, data: data };
+  document.getElementById('yesterdayEveningSection').style.display = 'block';
+  document.getElementById('yesterdayEveningContent').innerHTML = `
+    <div><b>日期：</b>${yKey} ${['日','一','二','三','四','五','六'][yesterday.getDay()]}</div>
+    <div><b>时长：</b>${data.hours}h</div>
+    <div><b>总结：</b>${data.summary || '未填写'}</div>
+    <div><b>问题：</b>${data.problem || '未填写'}</div>
+    <div><b>明日计划：</b>${data.tomorrow || '未填写'}</div>
+  `;
+}
+
+function copyEveningReport(dateKey) {
+  const allEvenings = JSON.parse(localStorage.getItem('skill4_evenings') || '{}');
+  const e = allEvenings[dateKey];
+  if (!e) return;
+  const text = `📅 ${dateKey} 晚报\n⏱ 学习时长：${e.hours}h\n📝 总结：${e.summary || '无'}\n❗ 问题：${e.problem || '无'}\n📌 明日计划：${e.tomorrow || '无'}`;
+  navigator.clipboard.writeText(text).then(() => {
+    alert('✅ 已复制！粘贴到对话框发给我');
+  }).catch(() => {
+    prompt('手动复制吧：', text);
+  });
+}
+
+function copyYesterdayEvening() {
+  if (!_yesterdayEveningData) return;
+  copyEveningReport(_yesterdayEveningData.key);
 }
 
 // ============================================================
