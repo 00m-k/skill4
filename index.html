@@ -1,4 +1,4 @@
-﻿<!-- v1785736484 -->
+﻿<!-- v1785736485 -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -1054,7 +1054,17 @@ function saveEvening() {
   // 清草稿
   localStorage.removeItem('skill4_draft_' + getDateKey());
 
-  document.getElementById('saveStatus').textContent = '✅ 已保存（可继续修改，再次保存覆盖）';
+  // 自动复制晚报到剪贴板
+  const copyText = `📅 ${data.date} 晚报
+⏱ 学习时长：${data.hours}h
+📝 总结：${data.summary || '无'}
+❗ 问题：${data.problem || '无'}
+📌 明日计划：${data.tomorrow || '无'}`;
+  navigator.clipboard.writeText(copyText).then(() => {
+    document.getElementById('saveStatus').textContent = '✅ 已保存！晚报内容已复制，切到微信粘贴发给Claude';
+  }).catch(() => {
+    document.getElementById('saveStatus').textContent = '✅ 已保存（点击下方复制按钮发给AI）';
+  });
 
   // 同时推送到GitHub
   pushToGitHub(data);
