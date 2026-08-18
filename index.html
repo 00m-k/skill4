@@ -461,9 +461,29 @@
   </div>
   <button onclick="saveToken()" style="background:var(--blue);color:#fff;border:none;padding:8px 24px;border-radius:16px;font-size:13px;font-weight:600;cursor:pointer;">保存</button>
   <span id="tokenStatus" style="margin-left:10px;font-size:12px;color:var(--green);"></span>
+
+  <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px;">
+    <div class="section-title" style="font-size:14px;">🔗 搭子同步（与手机App互通）</div>
+    <div style="font-size:11px;color:#999;margin:4px 0 10px;">连接后，手机搭子能读取你的学习进度；你在聊天里确认的进度也会写回这里。GitHub Token 必须已在上方填写。</div>
+    <button onclick="generateSyncCode()" style="background:var(--green);color:#fff;border:none;padding:8px 16px;border-radius:16px;font-size:13px;font-weight:600;cursor:pointer;">生成连接码</button>
+    <button onclick="syncNow()" style="background:var(--blue);color:#fff;border:none;padding:8px 16px;border-radius:16px;font-size:13px;font-weight:600;cursor:pointer;margin-left:6px;">立即同步</button>
+    <button onclick="disconnectSync()" style="background:transparent;color:var(--red,#e74c3c);border:1px solid var(--border);padding:8px 16px;border-radius:16px;font-size:13px;cursor:pointer;margin-left:6px;">断开</button>
+    <div style="margin-top:10px;">
+      <input type="password" id="syncCodeInput" placeholder="粘贴连接码（导入）" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
+      <button onclick="importSyncCode()" style="background:var(--blue);color:#fff;border:none;padding:6px 16px;border-radius:16px;font-size:13px;cursor:pointer;margin-top:6px;">导入连接码</button>
+    </div>
+    <div id="syncCodeDisplay" style="font-size:11px;word-break:break-all;color:var(--sub);margin-top:8px;background:var(--bg);padding:8px;border-radius:8px;display:none;"></div>
+    <div id="syncStatus" style="font-size:12px;color:var(--sub);margin-top:6px;"></div>
+  </div>
 </div>
 
 </div><!-- /mainContent -->
+
+<script type="module">
+  import syncCore from './sync-core.js';
+  window.skill4SyncCore = syncCore;
+  window.dispatchEvent(new Event('skill4-sync-ready'));
+</script>
 
 <script>
 // ============================================================
@@ -1069,6 +1089,9 @@ function saveEvening() {
   // 同时推送到GitHub
   pushToGitHub(data);
 
+  // 同步到搭子共享状态
+  _syncMarkEvening(data);
+
   renderEveningHistory();
   renderBacklog();
 }
@@ -1572,6 +1595,7 @@ function saveTask(id) {
   if (el && el.checked) set.add(text); else set.delete(text);
   localStorage.setItem('skill4_done_'+getDateKey(), JSON.stringify([...set]));
   renderEveningTasks();
+  _syncMarkTask(text, !!(el && el.checked));
 }
 function isTaskDone(text) { return getCompletedSet().has(text); }
 function loadTask(id) {
@@ -1741,9 +1765,293 @@ function init() {
   applyWeeklyBacklogRefresh(); // 跨周时把上周勾选同步到原始日期
   renderEvening();
   loadBacklog();
+  initCompanionSync();
   // AI任务缓存：模板版本升级时自动清除，平时保留
   setInterval(updateCountdowns, 60000);
 }
+
+// ============================================================
+//  🔗 搭子同步 — 与手机App双向互通
+//  共享状态经 GitHub sync/v1/state.json（加密）+ sync/v1/plan.json（公开计划）
+// ============================================================
+const _SYNC = {
+  key: 'skill4_sync_key',        // base64 的 32 字节同步密钥
+  connected: 'skill4_sync_connected',
+  state: 'skill4_sync_state',    // 本地共享状态缓存（明文，仅本机）
+  migrated: 'skill4_sync_migrated',
+};
+
+function _syncCore() { return window.skill4SyncCore; }
+
+function _syncKeyBytes() {
+  const b64 = localStorage.getItem(_SYNC.key);
+  if (!b64) return null;
+  try { return Uint8Array.from(atob(b64), c => c.charCodeAt(0)); } catch (e) { return null; }
+}
+
+function _syncConnected() {
+  return !!(_syncCore() && _syncKeyBytes() && localStorage.getItem(_SYNC.connected) === '1');
+}
+
+function _syncClient() {
+  return new (_syncCore().GitHubContentsSyncClient)({
+    fetchImpl: (...a) => fetch(...a),
+    tokenProvider: () => localStorage.getItem('skill4_gh_token') || '',
+    crypto: globalThis.crypto,
+  });
+}
+
+function _localState() {
+  try { return JSON.parse(localStorage.getItem(_SYNC.state) || 'null'); } catch (e) { return null; }
+}
+function _saveLocalState(s) { localStorage.setItem(_SYNC.state, JSON.stringify(s)); }
+
+// 由 _WEEK_TASKS 生成带稳定 ID 的计划导出（公开，非敏感）
+function _buildPlanExport() {
+  const core = _syncCore();
+  const items = [];
+  for (const wkStr of Object.keys(_WEEK_TASKS)) {
+    const wk = Number(wkStr);
+    const days = _WEEK_TASKS[wkStr];
+    for (const dowStr of Object.keys(days)) {
+      const dow = Number(dowStr);
+      const texts = days[dowStr];
+      texts.forEach((text, index) => {
+        const monday = new Date(_WEEK1_START.getTime());
+        monday.setDate(monday.getDate() + (wk - 1) * 7);
+        const off = (dow + 6) % 7;
+        const day = new Date(monday.getTime());
+        day.setDate(monday.getDate() + off);
+        const dateKey = getBeijingDateKey(day);
+        items.push({ id: core.taskIdFor(dateKey, wk, dow, index), text, dateKey, week: wk, dow, index });
+      });
+    }
+  }
+  return items;
+}
+
+function _planIndex() {
+  const idx = {};
+  for (const p of _buildPlanExport()) idx[p.id] = p;
+  return idx;
+}
+
+// 任务文字 → 稳定 ID（先精确匹配当天计划，非计划任务用文本哈希兜底）
+function _textToId(text, dateKey) {
+  for (const p of _buildPlanExport()) {
+    if (p.text === text && p.dateKey === dateKey) return p.id;
+  }
+  let h = 0;
+  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) >>> 0;
+  return dateKey + '/ai/' + h.toString(16);
+}
+
+// 网页当前数据 → 共享状态（仅在首次连接时全量迁移一次）
+function _stateFromWeb() {
+  const core = _syncCore();
+  const state = _localState() || core.emptyState();
+  const now = new Date().toISOString();
+  const doneByDate = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    const m = k && k.match(/^skill4_done_(.+)$/);
+    if (!m) continue;
+    try { doneByDate[m[1]] = new Set(JSON.parse(localStorage.getItem(k) || '[]')); } catch (e) {}
+  }
+  for (const p of _buildPlanExport()) {
+    const done = (doneByDate[p.dateKey] || new Set()).has(p.text);
+    if (done) state.tasks[p.id] = { done: true, updatedAt: now, source: 'web' };
+  }
+  const evenings = JSON.parse(localStorage.getItem('skill4_evenings') || '{}');
+  for (const [date, e] of Object.entries(evenings)) {
+    if (!e) continue;
+    state.dailyReports[date] = {
+      hours: e.hours || '0', summary: e.summary || '', problem: e.problem || '',
+      tomorrow: e.tomorrow || '', updatedAt: e.savedAt || now,
+    };
+  }
+  return state;
+}
+
+// 共享状态 → 写回网页 localStorage（合并，不清掉非计划任务）
+function _applyStateToWeb(state) {
+  if (!state) return;
+  const plan = _planIndex();
+  const ops = {}; // dateKey -> {add:Set, remove:Set}
+  for (const [id, entry] of Object.entries(state.tasks || {})) {
+    const p = plan[id];
+    if (!p) continue;
+    (ops[p.dateKey] = ops[p.dateKey] || { add: new Set(), remove: new Set() });
+    (entry.done ? ops[p.dateKey].add : ops[p.dateKey].remove).add(p.text);
+  }
+  for (const [dateKey, op] of Object.entries(ops)) {
+    const set = new Set(JSON.parse(localStorage.getItem('skill4_done_' + dateKey) || '[]'));
+    for (const t of op.remove) set.delete(t);
+    for (const t of op.add) set.add(t);
+    localStorage.setItem('skill4_done_' + dateKey, JSON.stringify([...set]));
+  }
+  const evenings = JSON.parse(localStorage.getItem('skill4_evenings') || '{}');
+  for (const [date, r] of Object.entries(state.dailyReports || {})) {
+    const existing = evenings[date];
+    if (!existing || !existing.savedAt || existing.savedAt <= (r.updatedAt || '')) {
+      evenings[date] = { date, tasks: existing ? existing.tasks : [], hours: r.hours, summary: r.summary, problem: r.problem, tomorrow: r.tomorrow, savedAt: r.updatedAt };
+    }
+  }
+  localStorage.setItem('skill4_evenings', JSON.stringify(evenings));
+}
+
+let _pushTimer = null;
+function _queuePush() {
+  clearTimeout(_pushTimer);
+  _pushTimer = setTimeout(() => _syncNow('push').catch(() => {}), 1500);
+}
+
+async function _syncNow(mode) {
+  if (!_syncConnected()) return;
+  const core = _syncCore();
+  const key = _syncKeyBytes();
+  const client = _syncClient();
+  const el = document.getElementById('syncStatus');
+  const setStatus = (s) => { if (el) el.textContent = s; };
+
+  try {
+    // 1) 拉取远程
+    const pulled = await client.pull(key);
+    // 2) 本地 + 远程合并
+    const local = _localState() || core.emptyState();
+    const merged = core.mergeState(local, pulled.state);
+    // 3) 若拉取到新东西，写回网页显示
+    _applyStateToWeb(merged);
+    _saveLocalState(merged);
+    // 4) 推回（把合并结果上传；同时公开推送计划导出）
+    await client.push(merged, pulled.sha, key);
+    await _pushPlanExport(client);
+    setStatus('✅ 已同步 ' + getBeijingDateKey(_getBeijingNow()));
+  } catch (e) {
+    setStatus('⚠️ 同步失败：' + (e && e.message ? e.message : e));
+    throw e;
+  }
+}
+
+async function _pushPlanExport(client) {
+  const token = localStorage.getItem('skill4_gh_token');
+  if (!token) return;
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(_buildPlanExport()))));
+  // 先查 sha
+  let sha = null;
+  const head = await fetch('https://api.github.com/repos/00m-k/skill4/contents/sync/v1/plan.json', {
+    headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' },
+  });
+  if (head.ok) { const f = await head.json(); sha = f.sha; }
+  const body = { message: 'sync: update plan export', content };
+  if (sha) body.sha = sha;
+  await fetch('https://api.github.com/repos/00m-k/skill4/contents/sync/v1/plan.json', {
+    method: 'PUT',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', Accept: 'application/vnd.github+json' },
+    body: JSON.stringify(body),
+  });
+}
+
+// 用户勾选/取消任务时，同步写入共享状态
+function _syncMarkTask(text, done) {
+  if (!_syncConnected()) return;
+  const core = _syncCore();
+  const state = _localState() || core.emptyState();
+  const id = _textToId(text, getDateKey());
+  state.tasks[id] = { done, updatedAt: new Date().toISOString(), source: 'web' };
+  _saveLocalState(state);
+  _queuePush();
+}
+
+// 用户保存晚报时，同步写入共享状态
+function _syncMarkEvening(data) {
+  if (!_syncConnected()) return;
+  const core = _syncCore();
+  const state = _localState() || core.emptyState();
+  state.dailyReports[data.date] = {
+    hours: data.hours || '0', summary: data.summary || '', problem: data.problem || '',
+    tomorrow: data.tomorrow || '', updatedAt: data.savedAt || new Date().toISOString(),
+  };
+  _saveLocalState(state);
+  _queuePush();
+}
+
+// —— 设置面板按钮 ——
+function _b64urlEncode(b64) { return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function _b64urlDecode(s) {
+  s = s.replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  return s;
+}
+
+function generateSyncCode() {
+  if (!_syncCore()) { alert('同步模块未加载'); return; }
+  if (!localStorage.getItem('skill4_gh_token')) {
+    document.getElementById('syncStatus').textContent = '⚠️ 请先在上方填写 GitHub Token 再连接';
+    return;
+  }
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  let bin = '';
+  bytes.forEach(b => bin += String.fromCharCode(b));
+  const keyB64 = btoa(bin);
+  localStorage.setItem(_SYNC.key, keyB64);
+  localStorage.setItem(_SYNC.connected, '1');
+  // 首次连接：把网页现有数据迁移进共享状态
+  if (localStorage.getItem(_SYNC.migrated) !== '1') {
+    _saveLocalState(_stateFromWeb());
+    localStorage.setItem(_SYNC.migrated, '1');
+  }
+  const code = 'skill4-sync://v1?repo=00m-k/skill4&key=' + _b64urlEncode(keyB64);
+  const d = document.getElementById('syncCodeDisplay');
+  d.textContent = code;
+  d.style.display = 'block';
+  document.getElementById('syncStatus').textContent = '✅ 已生成连接码，复制后粘贴到手机搭子App里连接';
+}
+
+function importSyncCode() {
+  const code = document.getElementById('syncCodeInput').value.trim();
+  const m = code.match(/key=([A-Za-z0-9_-]+)/);
+  if (!m) { document.getElementById('syncStatus').textContent = '⚠️ 连接码格式不对'; return; }
+  localStorage.setItem(_SYNC.key, _b64urlDecode(m[1]));
+  localStorage.setItem(_SYNC.connected, '1');
+  if (localStorage.getItem(_SYNC.migrated) !== '1') {
+    _saveLocalState(_stateFromWeb());
+    localStorage.setItem(_SYNC.migrated, '1');
+  }
+  document.getElementById('syncCodeInput').value = '';
+  document.getElementById('syncStatus').textContent = '✅ 已导入，点击「立即同步」开始';
+}
+
+function syncNow() {
+  if (!_syncConnected()) { document.getElementById('syncStatus').textContent = '⚠️ 尚未连接（先生成或导入连接码）'; return; }
+  document.getElementById('syncStatus').textContent = '⏳ 同步中...';
+  _syncNow('push').then(() => {
+    renderEveningTasks(); renderTasks(); renderEveningHistory();
+  }).catch(() => {});
+}
+
+function disconnectSync() {
+  if (!confirm('断开并清除本机同步凭据？学习数据不受影响。')) return;
+  localStorage.removeItem(_SYNC.key);
+  localStorage.removeItem(_SYNC.connected);
+  localStorage.removeItem(_SYNC.state);
+  localStorage.removeItem(_SYNC.migrated);
+  document.getElementById('syncStatus').textContent = '已断开';
+}
+
+function initCompanionSync() {
+  if (!_syncConnected()) return;
+  // 页面加载后静默拉一次，反映手机端的更新
+  _syncNow('pull').then(() => {
+    renderEveningTasks(); renderTasks(); renderEveningHistory(); renderBacklog();
+  }).catch(() => {});
+}
+
+// 模块脚本延迟执行：核心就绪后若已登录则补一次静默同步
+window.addEventListener('skill4-sync-ready', () => {
+  if (document.getElementById('mainContent').style.display !== 'none') initCompanionSync();
+});
 
 // 检查是否已登录过
 if (localStorage.getItem('skill4_auth') === '1') {
