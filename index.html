@@ -1998,12 +1998,16 @@ function generateSyncCode() {
     document.getElementById('syncStatus').textContent = '⚠️ 请先在上方填写 GitHub Token 再连接';
     return;
   }
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  let bin = '';
-  bytes.forEach(b => bin += String.fromCharCode(b));
-  const keyB64 = btoa(bin);
-  localStorage.setItem(_SYNC.key, keyB64);
+  // 复用已有密钥：重新生成新密钥会让 GitHub 上旧加密状态无法解密，导致「同步失败」
+  let keyB64 = localStorage.getItem(_SYNC.key);
+  if (!keyB64) {
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    let bin = '';
+    bytes.forEach(b => bin += String.fromCharCode(b));
+    keyB64 = btoa(bin);
+    localStorage.setItem(_SYNC.key, keyB64);
+  }
   localStorage.setItem(_SYNC.connected, '1');
   // 首次连接：把网页现有数据迁移进共享状态
   if (localStorage.getItem(_SYNC.migrated) !== '1') {
