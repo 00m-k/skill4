@@ -1924,6 +1924,7 @@ async function _syncNow(mode) {
     const pulled = await client.pull(key);
     // 2) 本地 + 远程合并
     const local = _localState() || core.emptyState();
+    local.progress = _currentProgress(); // 每次同步都刷新各科当前进度，确保搭子拿到最新值
     const merged = core.mergeState(local, pulled.state);
     // 3) 若拉取到新东西，写回网页显示
     _applyStateToWeb(merged);
