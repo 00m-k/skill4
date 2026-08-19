@@ -17,6 +17,7 @@ function emptyState() {
     revision: 0,
     tasks: {},
     dailyReports: {},
+    progress: [],
   };
 }
 
@@ -54,6 +55,8 @@ function mergeState(left, right) {
     revision: Math.max((left && left.revision) || 0, (right && right.revision) || 0),
     tasks,
     dailyReports,
+    // 进度由网页端维护（硬编码各科当前章节），取非空的一方。
+    progress: ((left && left.progress && left.progress.length) ? left.progress : ((right && right.progress) || [])),
   };
 }
 

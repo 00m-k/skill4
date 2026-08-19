@@ -905,15 +905,9 @@ function getAITasks() {
   return null;
 }
 
-function buildStudyContext(daysLeft) {
-  const allEvenings = JSON.parse(localStorage.getItem('skill4_evenings') || '{}');
-  const dates = Object.keys(allEvenings).sort();
-  const totalHoursDone = dates.reduce((sum, d) => sum + parseFloat(allEvenings[d].hours || 0), 0);
-
-  const allSummaries = dates.map(d => allEvenings[d].summary || '').join(' ');
-
-  // 明确当前进度（硬编码，与每日任务模板保持一致）
-  const currentProgress = [
+// 各科当前进度（唯一事实来源，网页硬编码维护，同时供日报生成 + 同步给搭子 App）
+function _currentProgress() {
+  return [
     '相生普心：第6章/23章（第5章已完成✅）（第5章=1h48min 1x→72min 1.5x）',
     '端木统计：第2章/32章',
     '王永平测量：未开始/29章',
@@ -924,6 +918,16 @@ function buildStudyContext(daysLeft) {
     '考公言语(阿里木江)：未开始/12节',
     '单词：每天50词新学，5500词总量',
   ];
+}
+
+function buildStudyContext(daysLeft) {
+  const allEvenings = JSON.parse(localStorage.getItem('skill4_evenings') || '{}');
+  const dates = Object.keys(allEvenings).sort();
+  const totalHoursDone = dates.reduce((sum, d) => sum + parseFloat(allEvenings[d].hours || 0), 0);
+
+  const allSummaries = dates.map(d => allEvenings[d].summary || '').join(' ');
+
+  const currentProgress = _currentProgress();
 
   const recentReports = dates.slice(-5).map(d => {
     const e = allEvenings[d];
@@ -1870,6 +1874,7 @@ function _stateFromWeb() {
       tomorrow: e.tomorrow || '', updatedAt: e.savedAt || now,
     };
   }
+  state.progress = _currentProgress();
   return state;
 }
 
@@ -1959,6 +1964,7 @@ function _syncMarkTask(text, done) {
   const state = _localState() || core.emptyState();
   const id = _textToId(text, getDateKey());
   state.tasks[id] = { done, updatedAt: new Date().toISOString(), source: 'web' };
+  state.progress = _currentProgress();
   _saveLocalState(state);
   _queuePush();
 }
@@ -1972,6 +1978,7 @@ function _syncMarkEvening(data) {
     hours: data.hours || '0', summary: data.summary || '', problem: data.problem || '',
     tomorrow: data.tomorrow || '', updatedAt: data.savedAt || new Date().toISOString(),
   };
+  state.progress = _currentProgress();
   _saveLocalState(state);
   _queuePush();
 }
